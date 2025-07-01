@@ -1,0 +1,292 @@
+# instrument-rs Configuration File Example
+# 
+# This file demonstrates all available configuration options for instrument-rs.
+# Copy this file to `instrument-rs.toml` and adjust the values for your project.
+
+# Project Configuration
+[project]
+# Root directory of the project (relative or absolute path)
+root_dir = "."
+
+# Source directories to analyze
+# These paths are relative to root_dir
+source_dirs = ["src", "lib"]
+
+# Test directories
+# Used to identify test code and optionally exclude from analysis
+test_dirs = ["tests", "benches"]
+
+# Glob patterns for files/directories to exclude
+# Supports standard glob syntax: *, **, ?, [...]
+exclude_patterns = [
+    "target/**",
+    "**/*.rs.bk",
+    "**/test_*.rs",
+    "examples/**",
+    "vendor/**",
+    "**/generated/**"
+]
+
+# Target directory for build artifacts
+# Used to store instrumented code and temporary files
+target_dir = "target"
+
+# Instrumentation Configuration
+[instrumentation]
+# Instrumentation mode
+# Options: "coverage", "mutation", "combined"
+mode = "coverage"
+
+# Whether to preserve original files
+# If true, creates backups before modifying files
+preserve_originals = true
+
+# Output directory for instrumented files
+# Relative to project root
+output_dir = "target/instrument-rs"
+
+# Enable parallel processing
+# Significantly speeds up analysis for large codebases
+parallel = true
+
+# Number of threads to use
+# If not specified, uses all available CPU cores
+# threads = 8
+
+# Mutation Testing Configuration
+[mutation]
+# Mutation operators to apply
+# Available operators:
+# - arithmetic_operator_replacement: Replace +, -, *, /, %
+# - comparison_operator_replacement: Replace <, >, <=, >=, ==, !=
+# - logical_operator_replacement: Replace &&, ||, !
+# - assignment_operator_replacement: Replace +=, -=, *=, /=, %=
+# - statement_deletion: Remove statements
+# - constant_replacement: Modify literal values
+# - return_value_replacement: Change return values
+# - function_call_replacement: Replace function calls
+# - loop_condition_modification: Modify loop conditions
+operators = [
+    "arithmetic_operator_replacement",
+    "comparison_operator_replacement",
+    "logical_operator_replacement",
+    "constant_replacement",
+    "return_value_replacement"
+]
+
+# Maximum mutations to apply per file
+# Helps limit test runtime for large files
+max_mutations_per_file = 100
+
+# Timeout for each mutation test run (in seconds)
+# Prevents infinite loops from hanging the test suite
+timeout_seconds = 30
+
+# Random seed for deterministic mutation selection
+# Useful for reproducible results in CI/CD
+# seed = 42
+
+# Reporting Configuration
+[reporting]
+# Output formats for reports
+# Available formats: "json", "html", "markdown", "xml", "lcov", "console"
+formats = ["html", "json", "console"]
+
+# Output directory for reports
+output_dir = "target/instrument-rs/reports"
+
+# Include source code in reports
+# Makes reports larger but more self-contained
+include_source = true
+
+# Minimum coverage threshold (0-100)
+# Build fails if coverage is below this percentage
+coverage_threshold = 80.0
+
+# Minimum mutation score threshold (0-100)
+# Build fails if mutation score is below this percentage
+mutation_threshold = 60.0
+
+# Advanced Analysis Options
+[analysis]
+# Detection threshold for instrumentation points (0.0-1.0)
+# Higher values = fewer, more confident suggestions
+threshold = 0.8
+
+# Minimum function size to consider (in lines)
+# Filters out trivial functions
+min_function_lines = 3
+
+# Maximum call graph depth to analyze
+# Prevents infinite recursion and limits analysis time
+max_call_depth = 10
+
+# Include test code in analysis
+# Useful for understanding test coverage patterns
+include_tests = false
+
+# Trace execution from HTTP/gRPC endpoints
+# Provides focused analysis on API entry points
+trace_from_endpoints = true
+
+# Framework Detection
+[framework]
+# Web framework to detect
+# Options: "auto", "axum", "actix", "rocket", "tonic", "none"
+detection = "auto"
+
+# Framework-specific settings
+[framework.axum]
+# Include middleware in analysis
+include_middleware = true
+# Detect extractors as critical paths
+track_extractors = true
+
+[framework.actix]
+# Include actors in analysis
+include_actors = true
+# Track message handlers
+track_messages = true
+
+[framework.rocket]
+# Include guards in analysis
+include_guards = true
+# Track fairings
+track_fairings = true
+
+[framework.tonic]
+# Include interceptors
+include_interceptors = true
+# Track streaming endpoints
+track_streaming = true
+
+# Pattern Matching Configuration
+[patterns]
+# Path to custom patterns file
+# Can be absolute or relative to config file
+# custom_patterns = "patterns/custom.toml"
+
+# Built-in pattern categories to enable
+enabled_categories = [
+    "database",
+    "http_client",
+    "error_handling",
+    "authentication",
+    "business_logic",
+    "external_services"
+]
+
+# Pattern sensitivity (0.0-1.0)
+# Lower = more matches, higher = more precise
+sensitivity = 0.7
+
+# Observability Configuration
+[observability]
+# Instrumentation providers to generate for
+# Options: "tracing", "log", "metrics", "opentelemetry"
+providers = ["tracing", "metrics"]
+
+# Span levels to generate
+# Options: "trace", "debug", "info", "warn", "error"
+span_levels = ["info", "warn", "error"]
+
+# Metrics to collect
+[observability.metrics]
+# Function execution time
+execution_time = true
+# Call counts
+call_count = true
+# Error rates
+error_rate = true
+# Custom business metrics
+business_metrics = true
+
+# Output Formatting
+[output]
+# Console output settings
+[output.console]
+# Use colors in output
+use_colors = true
+# Verbosity level: "quiet", "normal", "verbose", "debug"
+verbosity = "normal"
+# Show progress bars
+show_progress = true
+
+# JSON output settings
+[output.json]
+# Pretty print JSON
+pretty_print = true
+# Include metadata
+include_metadata = true
+
+# HTML output settings
+[output.html]
+# Theme: "light", "dark", "auto"
+theme = "auto"
+# Include syntax highlighting
+syntax_highlighting = true
+# Generate index page
+generate_index = true
+
+# Mermaid output settings
+[output.mermaid]
+# Maximum nodes to display
+max_nodes = 100
+# Layout direction: "TB", "BT", "LR", "RL"
+direction = "TB"
+# Include edge labels
+show_labels = true
+
+# Performance Tuning
+[performance]
+# File cache settings
+[performance.cache]
+# Enable file caching
+enabled = true
+# Cache directory
+directory = "target/instrument-rs/cache"
+# Cache TTL in seconds
+ttl_seconds = 3600
+
+# Memory limits
+[performance.memory]
+# Maximum memory usage in MB
+max_heap_size_mb = 4096
+# Enable memory profiling
+profiling = false
+
+# Parallelism settings
+[performance.parallel]
+# Chunk size for parallel processing
+chunk_size = 50
+# Maximum concurrent file operations
+max_file_handles = 256
+
+# Integration Settings
+[integrations]
+# CI/CD integration
+[integrations.ci]
+# Generate JUnit XML reports
+junit_xml = true
+# Exit with non-zero on threshold failure
+fail_on_threshold = true
+# Upload results to service
+# upload_to = "https://example.com/api/results"
+
+# Version control integration
+[integrations.vcs]
+# Only analyze changed files
+diff_only = false
+# Base branch for comparison
+# base_branch = "main"
+
+# Development Settings
+[dev]
+# Enable debug output
+debug = false
+# Save intermediate AST files
+save_ast = false
+# Profile performance
+profile = false
+# Validate all transformations
+validate_transforms = true

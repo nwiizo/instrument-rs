@@ -1,0 +1,34 @@
+[project]
+root_dir = "."
+source_dirs = ["src"]
+test_dirs = ["tests"]
+exclude_patterns = [
+    "target/**",
+    "**/*.rs.bk",
+]
+target_dir = "target"
+
+[instrumentation]
+mode = "coverage"
+preserve_originals = true
+output_dir = "target/instrument-rs"
+parallel = true
+
+[mutation]
+operators = [
+    "arithmetic_operator_replacement",
+    "comparison_operator_replacement",
+    "logical_operator_replacement",
+]
+max_mutations_per_file = 100
+timeout_seconds = 30
+
+[reporting]
+formats = [
+    "html",
+    "json",
+]
+output_dir = "target/instrument-rs/reports"
+include_source = true
+coverage_threshold = 80.0
+mutation_threshold = 60.0

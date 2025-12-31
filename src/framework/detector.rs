@@ -1,7 +1,7 @@
 //! Test framework detection implementation
 
-use crate::framework::FrameworkInfo;
 use crate::Result;
+use crate::framework::FrameworkInfo;
 use std::path::Path;
 
 /// Detector for test frameworks

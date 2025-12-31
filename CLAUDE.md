@@ -237,6 +237,91 @@ through the entire call graph to find external service calls, database operation
 and business logic requiring observability.
 ```
 
+## Rust 2024 Edition Best Practices
+
+This project uses **Rust 2024 edition** (requires Rust 1.85+).
+
+### Key Changes from 2021
+
+| Feature | 2021 | 2024 |
+|---------|------|------|
+| Pattern matching | `ref` allowed in implicit borrows | `ref` not allowed with implicit borrows |
+| RPIT lifetime | Explicit `+ 'a` often needed | Automatic lifetime capture |
+| unsafe fn | Body is implicitly unsafe | Requires explicit `unsafe {}` blocks |
+| Prelude | Standard prelude | Adds `Future`, `IntoFuture` |
+| async closures | `\|\| async {}` workaround | Native `async \|\| {}` syntax |
+
+### Code Guidelines
+
+```rust
+// Pattern matching - remove unnecessary ref
+// Before (2021)
+match &value {
+    Some(ref x) => use(x),
+    None => {},
+}
+
+// After (2024)
+match &value {
+    Some(x) => use(x),  // ref is implicit
+    None => {},
+}
+
+// RPIT lifetime capture - simplified
+// Before (2021)
+fn get_data<'a>(&'a self) -> impl Iterator<Item = &'a str> + 'a {
+    self.items.iter().map(|s| s.as_str())
+}
+
+// After (2024)
+fn get_data(&self) -> impl Iterator<Item = &str> {
+    self.items.iter().map(|s| s.as_str())
+}
+
+// unsafe fn - explicit blocks required
+unsafe fn dangerous(ptr: *const i32) -> i32 {
+    // 2024: must wrap unsafe operations
+    unsafe { *ptr }
+}
+```
+
+### Configuration Files
+
+- `Cargo.toml`: `edition = "2024"`, `rust-version = "1.85"`
+- `rustfmt.toml`: `edition = "2024"`, `style_edition = "2024"`
+- `clippy.toml`: Cognitive complexity and argument thresholds
+
+### Lints (Cargo.toml)
+
+```toml
+[lints.rust]
+unsafe_op_in_unsafe_fn = "warn"
+
+[lints.clippy]
+all = "warn"
+pedantic = "warn"
+module_name_repetitions = "allow"
+must_use_candidate = "allow"
+```
+
+### Migration Commands
+
+```bash
+# Automatic migration (conservative)
+cargo fix --edition
+
+# Check compatibility
+cargo clippy -- -W rust-2024-compatibility
+
+# Format with 2024 style
+cargo fmt
+```
+
+### Reserved Keywords
+
+- `gen` is reserved for future generator syntax
+- Update `rand` to 0.9+ if using `gen` as identifier
+
 ## Future Enhancements
 
 Consider implementing:

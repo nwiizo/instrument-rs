@@ -1,44 +1,42 @@
 //! Error types for the instrument-rs library
+//!
+//! This module provides error types for code analysis and instrumentation detection.
 
 use thiserror::Error;
 
 /// The main error type for instrument-rs operations
 #[derive(Error, Debug)]
 pub enum Error {
-    /// IO-related errors
-    #[error("IO error: {0}")]
+    /// I/O related errors (file reading, writing, etc.)
+    #[error("io error: {0}")]
     Io(#[from] std::io::Error),
 
-    /// Parsing errors when analyzing Rust code
-    #[error("Parse error: {0}")]
+    /// AST parsing and syntax errors
+    #[error("parse error: {0}")]
     Parse(String),
 
     /// Configuration errors
-    #[error("Configuration error: {0}")]
+    #[error("configuration error: {0}")]
     Config(String),
 
-    /// Instrumentation errors
-    #[error("Instrumentation error: {0}")]
-    Instrumentation(String),
-
     /// Framework detection errors
-    #[error("Framework detection error: {0}")]
+    #[error("framework detection error: {0}")]
     FrameworkDetection(String),
 
-    /// Mutation generation errors
-    #[error("Mutation error: {0}")]
-    Mutation(String),
+    /// Call graph construction errors
+    #[error("call graph error: {0}")]
+    CallGraph(String),
 
-    /// Reporting errors
-    #[error("Reporting error: {0}")]
-    Reporting(String),
+    /// Pattern matching errors
+    #[error("pattern matching error: {0}")]
+    PatternMatching(String),
 
     /// Serialization/deserialization errors
-    #[error("Serialization error: {0}")]
+    #[error("serialization error: {0}")]
     Serialization(#[from] serde_json::Error),
 
     /// TOML parsing errors
-    #[error("TOML error: {0}")]
+    #[error("toml error: {0}")]
     Toml(#[from] toml::de::Error),
 
     /// Generic errors
@@ -46,5 +44,48 @@ pub enum Error {
     Generic(String),
 }
 
+impl Error {
+    /// Create a parse error with the given message
+    #[must_use]
+    pub fn parse(message: impl Into<String>) -> Self {
+        Self::Parse(message.into())
+    }
+
+    /// Create a call graph error with the given message
+    #[must_use]
+    pub fn call_graph(message: impl Into<String>) -> Self {
+        Self::CallGraph(message.into())
+    }
+
+    /// Create a framework detection error with the given message
+    #[must_use]
+    pub fn framework(message: impl Into<String>) -> Self {
+        Self::FrameworkDetection(message.into())
+    }
+
+    /// Check if the error is retryable
+    #[must_use]
+    pub fn is_retryable(&self) -> bool {
+        match self {
+            Self::Io(e) => {
+                matches!(
+                    e.kind(),
+                    std::io::ErrorKind::WouldBlock
+                        | std::io::ErrorKind::Interrupted
+                        | std::io::ErrorKind::TimedOut
+                )
+            }
+            _ => false,
+        }
+    }
+}
+
 /// Type alias for Results using our Error type
 pub type Result<T> = std::result::Result<T, Error>;
+
+// Implement From for GraphBuildError
+impl From<crate::call_graph::GraphBuildError> for Error {
+    fn from(err: crate::call_graph::GraphBuildError) -> Self {
+        Error::CallGraph(err.to_string())
+    }
+}

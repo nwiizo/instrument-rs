@@ -1,12 +1,11 @@
 //! Utility functions for formatting and colorized terminal output
 
-
 /// ANSI color codes for terminal output
 pub mod colors {
     pub const RESET: &str = "\x1b[0m";
     pub const BOLD: &str = "\x1b[1m";
     pub const DIM: &str = "\x1b[2m";
-    
+
     pub const BLACK: &str = "\x1b[30m";
     pub const RED: &str = "\x1b[31m";
     pub const GREEN: &str = "\x1b[32m";
@@ -15,7 +14,7 @@ pub mod colors {
     pub const MAGENTA: &str = "\x1b[35m";
     pub const CYAN: &str = "\x1b[36m";
     pub const WHITE: &str = "\x1b[37m";
-    
+
     pub const BG_RED: &str = "\x1b[41m";
     pub const BG_GREEN: &str = "\x1b[42m";
     pub const BG_YELLOW: &str = "\x1b[43m";
@@ -60,13 +59,9 @@ pub fn format_coverage(coverage: f64, use_color: bool) -> String {
 pub fn format_coverage_bar(coverage: f64, width: usize, use_color: bool) -> String {
     let filled = ((coverage / 100.0) * width as f64) as usize;
     let empty = width.saturating_sub(filled);
-    
-    let bar = format!(
-        "[{}{}]",
-        "█".repeat(filled),
-        "░".repeat(empty)
-    );
-    
+
+    let bar = format!("[{}{}]", "█".repeat(filled), "░".repeat(empty));
+
     colorize(&bar, coverage_color(coverage), use_color)
 }
 
@@ -92,7 +87,7 @@ impl TreeBuilder {
             use_color,
         }
     }
-    
+
     /// Add a node to the tree
     ///
     /// # Arguments
@@ -112,29 +107,29 @@ impl TreeBuilder {
     ) {
         let mut line = String::new();
         line.push_str(prefix);
-        
+
         let branch = if is_last {
             tree_chars::LAST_BRANCH
         } else {
             tree_chars::BRANCH
         };
         line.push_str(branch);
-        
+
         let styled_label = if let Some(c) = color {
             colorize(label, c, self.use_color)
         } else {
             label.to_string()
         };
         line.push_str(&styled_label);
-        
+
         if let Some(v) = value {
             line.push_str(" ");
             line.push_str(v);
         }
-        
+
         self.lines.push(line);
     }
-    
+
     /// Get the next prefix for children of the current node
     pub fn child_prefix(prefix: &str, is_last: bool) -> String {
         let mut new_prefix = prefix.to_string();
@@ -145,7 +140,7 @@ impl TreeBuilder {
         }
         new_prefix
     }
-    
+
     /// Build the final tree string
     pub fn build(self) -> String {
         self.lines.join("\n")
@@ -156,15 +151,15 @@ impl TreeBuilder {
 pub fn format_size(bytes: u64) -> String {
     const UNITS: &[&str] = &["B", "KB", "MB", "GB"];
     const THRESHOLD: f64 = 1024.0;
-    
+
     let mut size = bytes as f64;
     let mut unit_index = 0;
-    
+
     while size >= THRESHOLD && unit_index < UNITS.len() - 1 {
         size /= THRESHOLD;
         unit_index += 1;
     }
-    
+
     format!("{:.1} {}", size, UNITS[unit_index])
 }
 
@@ -212,17 +207,17 @@ impl ProgressBar {
             use_color,
         }
     }
-    
+
     /// Update the progress
     pub fn update(&mut self, current: usize) {
         self.current = current.min(self.total);
     }
-    
+
     /// Increment the progress by one
     pub fn increment(&mut self) {
         self.current = (self.current + 1).min(self.total);
     }
-    
+
     /// Format the progress bar
     pub fn format(&self) -> String {
         let percentage = if self.total > 0 {
@@ -230,10 +225,10 @@ impl ProgressBar {
         } else {
             0.0
         };
-        
+
         let filled = ((percentage / 100.0) * self.width as f64) as usize;
         let empty = self.width.saturating_sub(filled);
-        
+
         let bar = format!(
             "[{}{}] {}/{} ({:.1}%)",
             "=".repeat(filled),
@@ -242,7 +237,7 @@ impl ProgressBar {
             self.total,
             percentage
         );
-        
+
         if percentage >= 100.0 {
             colorize(&bar, colors::GREEN, self.use_color)
         } else {
@@ -254,7 +249,7 @@ impl ProgressBar {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_format_size() {
         assert_eq!(format_size(512), "512.0 B");
@@ -262,21 +257,21 @@ mod tests {
         assert_eq!(format_size(1536), "1.5 KB");
         assert_eq!(format_size(1048576), "1.0 MB");
     }
-    
+
     #[test]
     fn test_truncate_string() {
         assert_eq!(truncate_string("hello", 10), "hello");
         assert_eq!(truncate_string("hello world", 8), "hello...");
         assert_eq!(truncate_string("hi", 2), "hi");
     }
-    
+
     #[test]
     fn test_format_duration() {
         assert_eq!(format_duration(45), "45s");
         assert_eq!(format_duration(90), "1m 30s");
         assert_eq!(format_duration(3665), "1h 1m");
     }
-    
+
     #[test]
     fn test_coverage_color() {
         assert_eq!(coverage_color(90.0), colors::GREEN);

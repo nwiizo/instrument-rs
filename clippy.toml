@@ -1,0 +1,11 @@
+# clippy.toml - Clippy linter configuration
+# See: https://rust-lang.github.io/rust-clippy/master/index.html
+
+# Maximum cognitive complexity before triggering a warning
+cognitive-complexity-threshold = 25
+
+# Maximum number of function arguments before triggering a warning
+too-many-arguments-threshold = 7
+
+# Maximum type complexity before triggering a warning
+type-complexity-threshold = 250

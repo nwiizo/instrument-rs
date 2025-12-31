@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-/// Categories of test-related code.
+/// Categories of code patterns.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Category {
     /// Unit test (standard #[test] functions)
@@ -30,7 +30,31 @@ pub enum Category {
     /// Example code
     Example,
 
-    /// Unknown/uncategorized test code
+    /// Database operation (query, insert, update, delete)
+    Database,
+
+    /// HTTP client call (reqwest, hyper client, etc.)
+    HttpClient,
+
+    /// External service call (API, gRPC, etc.)
+    ExternalService,
+
+    /// Cache operation (get, set, invalidate)
+    Cache,
+
+    /// Message queue operation (publish, consume)
+    MessageQueue,
+
+    /// Error handling code
+    ErrorHandling,
+
+    /// Authentication/authorization code
+    Auth,
+
+    /// Business logic
+    BusinessLogic,
+
+    /// Unknown/uncategorized code
     Unknown,
 }
 
@@ -46,6 +70,14 @@ impl Category {
             Self::Mock => "Mock/Stub",
             Self::TestUtility => "Test Utility",
             Self::Example => "Example",
+            Self::Database => "Database",
+            Self::HttpClient => "HTTP Client",
+            Self::ExternalService => "External Service",
+            Self::Cache => "Cache",
+            Self::MessageQueue => "Message Queue",
+            Self::ErrorHandling => "Error Handling",
+            Self::Auth => "Authentication",
+            Self::BusinessLogic => "Business Logic",
             Self::Unknown => "Unknown",
         }
     }
@@ -61,6 +93,14 @@ impl Category {
             Self::Mock => "mock",
             Self::TestUtility => "utility",
             Self::Example => "example",
+            Self::Database => "database",
+            Self::HttpClient => "http_client",
+            Self::ExternalService => "external_service",
+            Self::Cache => "cache",
+            Self::MessageQueue => "message_queue",
+            Self::ErrorHandling => "error_handling",
+            Self::Auth => "auth",
+            Self::BusinessLogic => "business_logic",
             Self::Unknown => "unknown",
         }
     }
@@ -90,6 +130,15 @@ pub struct MatchDetail {
 /// Contains the confidence scores, matched patterns, and determined category.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MatchResult {
+    /// File where the pattern was matched
+    pub file: std::path::PathBuf,
+
+    /// Function name where the pattern was matched
+    pub function_name: String,
+
+    /// Line number where the pattern was matched
+    pub line: usize,
+
     /// Overall confidence that this is test-related code (0.0 to 1.0)
     pub confidence: f64,
 
@@ -113,6 +162,24 @@ impl MatchResult {
     /// Creates a new empty match result.
     pub fn new() -> Self {
         Self {
+            file: std::path::PathBuf::new(),
+            function_name: String::new(),
+            line: 0,
+            confidence: 0.0,
+            category_scores: HashMap::new(),
+            category: Category::Unknown,
+            matches: Vec::new(),
+            frameworks: Vec::new(),
+            metadata: HashMap::new(),
+        }
+    }
+
+    /// Creates a new match result with location information.
+    pub fn with_location(file: std::path::PathBuf, function_name: String, line: usize) -> Self {
+        Self {
+            file,
+            function_name,
+            line,
             confidence: 0.0,
             category_scores: HashMap::new(),
             category: Category::Unknown,

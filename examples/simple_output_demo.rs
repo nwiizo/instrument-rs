@@ -4,16 +4,16 @@ use std::collections::HashMap;
 
 fn main() {
     println!("=== Output Formatter Demonstration ===\n");
-    
+
     // Tree view example
     println!("1. Tree View Output:");
     println!("--------------------");
     print_tree_example();
-    
+
     println!("\n2. JSON Output:");
     println!("---------------");
     print_json_example();
-    
+
     println!("\n3. Mermaid Diagram:");
     println!("-------------------");
     print_mermaid_example();
@@ -73,7 +73,7 @@ fn print_mermaid_example() {
     println!("    class High highCov");
     println!("    class Med medCov");
     println!("```");
-    
+
     println!("\n```mermaid");
     println!("pie title Mutation Testing Results");
     println!("    \"Killed\" : 45");

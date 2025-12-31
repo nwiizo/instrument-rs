@@ -16,14 +16,17 @@ impl TestProject {
     pub fn new() -> Self {
         let temp_dir = TempDir::new().unwrap();
         let root_path = temp_dir.path().to_path_buf();
-        
+
         // Create default project structure
         fs::create_dir_all(root_path.join("src")).unwrap();
         fs::create_dir_all(root_path.join("tests")).unwrap();
-        
-        Self { temp_dir, root_path }
+
+        Self {
+            temp_dir,
+            root_path,
+        }
     }
-    
+
     /// Add a source file to the project
     pub fn add_source_file(&self, relative_path: &str, content: &str) -> PathBuf {
         let file_path = self.root_path.join("src").join(relative_path);
@@ -33,7 +36,7 @@ impl TestProject {
         fs::write(&file_path, content).unwrap();
         file_path
     }
-    
+
     /// Add a test file to the project
     pub fn add_test_file(&self, relative_path: &str, content: &str) -> PathBuf {
         let file_path = self.root_path.join("tests").join(relative_path);
@@ -43,14 +46,14 @@ impl TestProject {
         fs::write(&file_path, content).unwrap();
         file_path
     }
-    
+
     /// Add a Cargo.toml file
     pub fn add_cargo_toml(&self, content: &str) -> PathBuf {
         let file_path = self.root_path.join("Cargo.toml");
         fs::write(&file_path, content).unwrap();
         file_path
     }
-    
+
     /// Create a configuration for this test project
     pub fn create_config(&self) -> Config {
         Config::default()
@@ -60,23 +63,27 @@ impl TestProject {
 /// Sample Rust project generators
 pub mod sample_projects {
     use super::*;
-    
+
     /// Create a simple library project with basic functions
     pub fn simple_library() -> TestProject {
         let project = TestProject::new();
-        
+
         // Add Cargo.toml
-        project.add_cargo_toml(r#"
+        project.add_cargo_toml(
+            r#"
 [package]
 name = "test-lib"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-"#);
-        
+"#,
+        );
+
         // Add lib.rs
-        project.add_source_file("lib.rs", r#"
+        project.add_source_file(
+            "lib.rs",
+            r#"
 //! A simple library for testing
 
 /// Adds two numbers together
@@ -132,10 +139,13 @@ mod tests {
         assert_eq!(divide(10, 0), None);
     }
 }
-"#);
-        
+"#,
+        );
+
         // Add integration test
-        project.add_test_file("integration_test.rs", r#"
+        project.add_test_file(
+            "integration_test.rs",
+            r#"
 use test_lib::*;
 
 #[test]
@@ -145,17 +155,19 @@ fn test_complex_logic_integration() {
     assert!(complex_logic(5, -1).is_err());
     assert!(complex_logic(101, 5).is_err());
 }
-"#);
-        
+"#,
+        );
+
         project
     }
-    
+
     /// Create an Axum web application project
     pub fn axum_web_app() -> TestProject {
         let project = TestProject::new();
-        
+
         // Add Cargo.toml
-        project.add_cargo_toml(r#"
+        project.add_cargo_toml(
+            r#"
 [package]
 name = "test-axum-app"
 version = "0.1.0"
@@ -170,10 +182,13 @@ serde_json = "1.0"
 
 [dev-dependencies]
 axum-test = "0.1"
-"#);
-        
+"#,
+        );
+
         // Add main.rs
-        project.add_source_file("main.rs", r#"
+        project.add_source_file(
+            "main.rs",
+            r#"
 use axum::{
     routing::{get, post},
     http::StatusCode,
@@ -264,10 +279,13 @@ mod tests {
         assert_eq!(response.status_code(), StatusCode::OK);
     }
 }
-"#);
-        
+"#,
+        );
+
         // Add handlers module
-        project.add_source_file("handlers/mod.rs", r#"
+        project.add_source_file(
+            "handlers/mod.rs",
+            r#"
 pub mod user;
 pub mod admin;
 
@@ -277,9 +295,12 @@ use axum::http::StatusCode;
 pub async fn not_found() -> impl IntoResponse {
     (StatusCode::NOT_FOUND, "Page not found")
 }
-"#);
-        
-        project.add_source_file("handlers/user.rs", r#"
+"#,
+        );
+
+        project.add_source_file(
+            "handlers/user.rs",
+            r#"
 use axum::{Json, extract::State};
 use serde::{Deserialize, Serialize};
 
@@ -302,16 +323,18 @@ pub async fn get_profile(State(state): State<AppState>) -> Json<UserProfile> {
 pub struct AppState {
     pub db_pool: String, // Simplified for testing
 }
-"#);
-        
+"#,
+        );
+
         project
     }
-    
+
     /// Create a project with complex code patterns
     pub fn complex_patterns() -> TestProject {
         let project = TestProject::new();
-        
-        project.add_cargo_toml(r#"
+
+        project.add_cargo_toml(
+            r#"
 [package]
 name = "complex-patterns"
 version = "0.1.0"
@@ -320,9 +343,12 @@ edition = "2021"
 [dependencies]
 async-trait = "0.1"
 tokio = { version = "1", features = ["full"] }
-"#);
-        
-        project.add_source_file("lib.rs", r#"
+"#,
+        );
+
+        project.add_source_file(
+            "lib.rs",
+            r#"
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -485,27 +511,31 @@ mod tests {
         assert_eq!(fibonacci(10), 55);
     }
 }
-"#);
-        
+"#,
+        );
+
         project
     }
-    
+
     /// Create a large project for performance testing
     pub fn large_codebase() -> TestProject {
         let project = TestProject::new();
-        
-        project.add_cargo_toml(r#"
+
+        project.add_cargo_toml(
+            r#"
 [package]
 name = "large-project"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-"#);
-        
+"#,
+        );
+
         // Generate many module files
         for i in 0..50 {
-            let module_content = format!(r#"
+            let module_content = format!(
+                r#"
 //! Module {i} documentation
 
 /// Function {i}_a
@@ -558,19 +588,21 @@ mod tests {{
         assert_eq!(function_{i}_b(5, 3).unwrap(), 2);
     }}
 }}
-"#, i = i);
-            
+"#,
+                i = i
+            );
+
             project.add_source_file(&format!("module_{}.rs", i), &module_content);
         }
-        
+
         // Create lib.rs that exports all modules
         let mut lib_content = String::from("//! Large codebase for performance testing\n\n");
         for i in 0..50 {
             lib_content.push_str(&format!("pub mod module_{};\n", i));
         }
-        
+
         project.add_source_file("lib.rs", &lib_content);
-        
+
         project
     }
 }
@@ -578,7 +610,8 @@ mod tests {{
 /// Helper function to create a sample config file
 pub fn create_sample_config_file(path: &Path, config_type: &str) -> PathBuf {
     let content = match config_type {
-        "minimal" => r#"
+        "minimal" => {
+            r#"
 [project]
 root_dir = "."
 source_dirs = ["src"]
@@ -586,8 +619,10 @@ test_dirs = ["tests"]
 
 [instrumentation]
 mode = "coverage"
-"#,
-        "full" => r#"
+"#
+        }
+        "full" => {
+            r#"
 [project]
 root_dir = "."
 source_dirs = ["src", "lib"]
@@ -619,17 +654,20 @@ output_dir = "target/reports"
 include_source = true
 coverage_threshold = 85.0
 mutation_threshold = 70.0
-"#,
-        "invalid" => r#"
+"#
+        }
+        "invalid" => {
+            r#"
 [project]
 # Missing required fields
 
 [instrumentation
 # Invalid TOML syntax
-"#,
+"#
+        }
         _ => panic!("Unknown config type: {}", config_type),
     };
-    
+
     let file_path = path.join(format!("{}_config.toml", config_type));
     fs::write(&file_path, content).unwrap();
     file_path
@@ -638,12 +676,12 @@ mutation_threshold = 70.0
 /// Assertion helpers
 pub mod assertions {
     use std::path::Path;
-    
+
     /// Assert that a file exists
     pub fn assert_file_exists(path: &Path) {
         assert!(path.exists(), "Expected file to exist: {:?}", path);
     }
-    
+
     /// Assert that a file contains specific content
     pub fn assert_file_contains(path: &Path, expected: &str) {
         let content = std::fs::read_to_string(path)
@@ -655,7 +693,7 @@ pub mod assertions {
             expected
         );
     }
-    
+
     /// Assert that a directory exists and contains files
     pub fn assert_dir_not_empty(path: &Path) {
         assert!(path.is_dir(), "Expected directory: {:?}", path);

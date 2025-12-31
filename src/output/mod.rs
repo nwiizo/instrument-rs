@@ -7,19 +7,19 @@ use crate::Result;
 use std::io::Write;
 use std::path::Path;
 
-pub mod tree;
 pub mod json;
 pub mod mermaid;
 pub mod traits;
+pub mod tree;
 pub mod utils;
 
 #[cfg(test)]
 mod test;
 
-pub use traits::{OutputFormatter, FormatterOptions, OutputFormat};
-pub use tree::TreeFormatter;
 pub use json::JsonFormatter;
 pub use mermaid::MermaidFormatter;
+pub use traits::{FormatterOptions, OutputFormat, OutputFormatter};
+pub use tree::TreeFormatter;
 
 /// Factory for creating output formatters
 pub struct FormatterFactory;

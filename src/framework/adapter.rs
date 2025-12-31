@@ -1,7 +1,7 @@
 //! Test framework adapters
 
-use crate::framework::{RunnerConfig, TestFramework, TestResults, TestRunner};
 use crate::Result;
+use crate::framework::{RunnerConfig, TestFramework, TestResults, TestRunner};
 
 /// Built-in test framework adapter
 pub struct BuiltinTestAdapter;

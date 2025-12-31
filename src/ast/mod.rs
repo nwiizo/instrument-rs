@@ -302,6 +302,23 @@ impl SourceFile {
         })
     }
 
+    /// Get the path to the source file
+    #[must_use]
+    pub fn path(&self) -> &std::path::Path {
+        &self.path
+    }
+
+    /// Get the source code
+    #[must_use]
+    pub fn source(&self) -> &str {
+        &self.source
+    }
+
+    /// Get the number of lines in the source file
+    #[must_use]
+    pub fn line_count(&self) -> usize {
+        self.source.lines().count()
+    }
 }
 
 /// Information about a function call

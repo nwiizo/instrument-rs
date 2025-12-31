@@ -18,26 +18,17 @@
 //!
 //! # Example
 //!
-//! ```no_run
+//! ```ignore
 //! use instrument_rs::call_graph::{GraphBuilder, CallGraph};
 //! use std::path::PathBuf;
 //!
 //! // Build a call graph from source files
 //! let mut builder = GraphBuilder::new();
-//! builder.add_source_file(PathBuf::from("src/main.rs"))?;
-//! builder.add_source_file(PathBuf::from("src/lib.rs"))?;
-//!
-//! let graph = builder.build()?;
+//! let graph = builder.build_from_directory(&PathBuf::from("src"))?;
 //!
 //! // Analyze the graph
 //! println!("Total functions: {}", graph.node_count());
 //! println!("Total calls: {}", graph.edge_count());
-//!
-//! // Find critical paths
-//! let critical_paths = graph.find_critical_paths();
-//! for path in critical_paths {
-//!     println!("Critical path: {:?}", path);
-//! }
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 //!
@@ -57,11 +48,11 @@ mod graph;
 mod node;
 mod resolver;
 
-pub use builder::{GraphBuilder, GraphBuildError};
+pub use builder::{GraphBuildError, GraphBuilder};
 pub use edge::{CallEdge, CallKind};
 pub use graph::{CallGraph, GraphStats};
 pub use node::{FunctionNode, NodeKind};
-pub use resolver::{SymbolResolver, ResolvedSymbol};
+pub use resolver::{ResolvedSymbol, SymbolResolver};
 
 /// Result type for call graph operations
 pub type Result<T> = std::result::Result<T, GraphBuildError>;

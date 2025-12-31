@@ -51,7 +51,7 @@ impl CallEdge {
             context: CallContext::Direct,
         }
     }
-    
+
     /// Sets the location information for this edge
     pub fn with_location(mut self, file_path: String, line: usize, column: usize) -> Self {
         self.file_path = Some(file_path);
@@ -59,30 +59,30 @@ impl CallEdge {
         self.column = Some(column);
         self
     }
-    
+
     /// Sets whether this call is conditional
     pub fn with_conditional(mut self, is_conditional: bool) -> Self {
         self.is_conditional = is_conditional;
         self
     }
-    
+
     /// Sets whether this call is in a loop
     pub fn with_in_loop(mut self, is_in_loop: bool) -> Self {
         self.is_in_loop = is_in_loop;
         self
     }
-    
+
     /// Sets the call context
     pub fn with_context(mut self, context: CallContext) -> Self {
         self.context = context;
         self
     }
-    
+
     /// Returns a unique identifier for this edge
     pub fn id(&self) -> String {
         format!("{} -> {}", self.from, self.to)
     }
-    
+
     /// Returns the weight of this edge for graph analysis
     pub fn weight(&self) -> f64 {
         let base_weight = match self.kind {
@@ -93,10 +93,10 @@ impl CallEdge {
             CallKind::Trait => 0.7,
             CallKind::Closure => 0.9,
         };
-        
+
         let conditional_factor = if self.is_conditional { 0.8 } else { 1.0 };
         let loop_factor = if self.is_in_loop { 1.5 } else { 1.0 };
-        
+
         base_weight * conditional_factor * loop_factor
     }
 }
@@ -185,7 +185,7 @@ impl fmt::Display for CallContext {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_call_edge_creation() {
         let edge = CallEdge::new(
@@ -193,55 +193,46 @@ mod tests {
             "module::callee".to_string(),
             CallKind::Direct,
         );
-        
+
         assert_eq!(edge.from, "module::caller");
         assert_eq!(edge.to, "module::callee");
         assert_eq!(edge.kind, CallKind::Direct);
         assert!(!edge.is_conditional);
         assert!(!edge.is_in_loop);
     }
-    
+
     #[test]
     fn test_edge_with_location() {
-        let edge = CallEdge::new(
-            "caller".to_string(),
-            "callee".to_string(),
-            CallKind::Direct,
-        )
-        .with_location("src/main.rs".to_string(), 42, 10);
-        
+        let edge = CallEdge::new("caller".to_string(), "callee".to_string(), CallKind::Direct)
+            .with_location("src/main.rs".to_string(), 42, 10);
+
         assert_eq!(edge.file_path, Some("src/main.rs".to_string()));
         assert_eq!(edge.line_number, Some(42));
         assert_eq!(edge.column, Some(10));
     }
-    
+
     #[test]
     fn test_edge_weight_calculation() {
-        let base_edge = CallEdge::new(
-            "a".to_string(),
-            "b".to_string(),
-            CallKind::Direct,
-        );
-        assert_eq!(base_edge.weight(), 1.0);
-        
+        let base_edge = CallEdge::new("a".to_string(), "b".to_string(), CallKind::Direct);
+        assert!((base_edge.weight() - 1.0).abs() < f64::EPSILON);
+
         let conditional_edge = base_edge.clone().with_conditional(true);
-        assert_eq!(conditional_edge.weight(), 0.8);
-        
+        assert!((conditional_edge.weight() - 0.8).abs() < f64::EPSILON);
+
         let loop_edge = base_edge.clone().with_in_loop(true);
-        assert_eq!(loop_edge.weight(), 1.5);
-        
-        let complex_edge = base_edge.clone()
-            .with_conditional(true)
-            .with_in_loop(true);
-        assert_eq!(complex_edge.weight(), 1.2); // 1.0 * 0.8 * 1.5
+        assert!((loop_edge.weight() - 1.5).abs() < f64::EPSILON);
+
+        let complex_edge = base_edge.clone().with_conditional(true).with_in_loop(true);
+        // 1.0 * 0.8 * 1.5 = 1.2 (allow small floating point error)
+        assert!((complex_edge.weight() - 1.2).abs() < 0.0001);
     }
-    
+
     #[test]
     fn test_edge_equality() {
         let edge1 = CallEdge::new("a".to_string(), "b".to_string(), CallKind::Direct);
         let edge2 = CallEdge::new("a".to_string(), "b".to_string(), CallKind::Indirect);
         let edge3 = CallEdge::new("a".to_string(), "c".to_string(), CallKind::Direct);
-        
+
         assert_eq!(edge1, edge2); // Same from/to, different kind
         assert_ne!(edge1, edge3); // Different to
     }

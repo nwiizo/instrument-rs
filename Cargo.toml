@@ -1,7 +1,8 @@
 [package]
 name = "instrument-rs"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
+rust-version = "1.85"
 authors = ["nwiizo"]
 description = "A Rust library for instrumenting code to track test coverage and generate mutation testing reports"
 license = "MIT"
@@ -71,3 +72,18 @@ path = "src/main.rs"
 
 [lib]
 path = "src/lib.rs"
+
+# Rust 2024 lints configuration
+[lints.rust]
+# Rust 2024 makes this warn-by-default; explicitly enable for clarity
+unsafe_op_in_unsafe_fn = "warn"
+
+[lints.clippy]
+# Pedantic lints for better code quality
+all = "warn"
+pedantic = "warn"
+# Allow some pedantic lints that are too noisy
+module_name_repetitions = "allow"
+must_use_candidate = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"

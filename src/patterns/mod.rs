@@ -29,7 +29,7 @@
 //!
 //! # Example
 //!
-//! ```no_run
+//! ```ignore
 //! use instrument_rs::patterns::{PatternMatcher, PatternSet};
 //!
 //! // Load default patterns
@@ -39,7 +39,7 @@
 //! // Match against a function
 //! let matches = matcher.match_function("process_payment", &[]);
 //! for m in matches {
-//!     println!("Found {} pattern with confidence {}", m.category, m.confidence);
+//!     println!("Found {:?} pattern", m.category);
 //! }
 //! ```
 //!

@@ -1,8 +1,8 @@
-//! Framework detection and integration for web frameworks and testing tools
+//! Framework detection and integration for web frameworks
 //!
 //! This module provides automatic detection of web frameworks (Axum, Actix-web,
-//! Rocket, Tonic) and testing frameworks used in Rust projects. It identifies
-//! framework-specific patterns, endpoints, and handlers.
+//! Rocket, Tonic) used in Rust projects. It identifies framework-specific
+//! patterns, endpoints, and handlers.
 //!
 //! # Supported Web Frameworks
 //!
@@ -10,40 +10,46 @@
 //! - **Actix-web**: Actor-based web framework
 //! - **Rocket**: Web framework with code generation
 //! - **Tonic**: gRPC framework for Rust
-//!
-//! # Supported Test Frameworks
-//!
-//! - Built-in Rust test (`#[test]`)
-//! - Tokio test (`#[tokio::test]`)
-//! - async-std test (`#[async_std::test]`)
-//! - Proptest (property-based testing)
-//! - Quickcheck (property-based testing)
-//! - Criterion (benchmarking)
-//!
-//! # Example
-//!
-//! ```no_run
-//! use instrument_rs::framework::detector::FrameworkDetector;
-//! use std::path::Path;
-//!
-//! let detector = FrameworkDetector::new();
-//! 
-//! // Detect web framework from Cargo.toml
-//! if let Some(framework) = detector.detect_from_cargo(Path::new("Cargo.toml"))? {
-//!     println!("Detected web framework: {:?}", framework);
-//! }
-//!
-//! // Detect from source code
-//! let source = std::fs::read_to_string("src/main.rs")?;
-//! if let Some(framework) = detector.detect_from_source(&source) {
-//!     println!("Detected framework in source: {:?}", framework);
-//! }
-//! # Ok::<(), Box<dyn std::error::Error>>(())
-//! ```
 
 pub mod adapter;
 pub mod detector;
 pub mod web;
+
+/// Detected web framework
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum DetectedFramework {
+    /// Axum web framework
+    Axum,
+    /// Actix-web framework
+    Actix,
+    /// Rocket framework
+    Rocket,
+    /// Tonic gRPC framework
+    Tonic,
+    /// Unknown or no framework detected
+    #[default]
+    Unknown,
+}
+
+impl DetectedFramework {
+    /// Get the display name of the framework
+    #[must_use]
+    pub fn name(&self) -> &'static str {
+        match self {
+            Self::Axum => "axum",
+            Self::Actix => "actix-web",
+            Self::Rocket => "rocket",
+            Self::Tonic => "tonic",
+            Self::Unknown => "unknown",
+        }
+    }
+
+    /// Check if a framework was detected
+    #[must_use]
+    pub fn is_known(&self) -> bool {
+        !matches!(self, Self::Unknown)
+    }
+}
 
 /// Supported test frameworks
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

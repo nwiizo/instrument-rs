@@ -1,7 +1,7 @@
 //! AST analysis implementation
 
-use crate::ast::{AnalysisResult, SourceFile};
 use crate::Result;
+use crate::ast::{AnalysisResult, SourceFile};
 
 /// Analyzer for Rust AST
 ///

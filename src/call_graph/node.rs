@@ -55,24 +55,28 @@ impl FunctionNode {
     ) -> Self {
         let name = item.sig.ident.to_string();
         let id = Self::generate_id(&module_path, &name);
-        
+
         let signature = quote::quote!(#item.sig).to_string();
         let is_async = item.sig.asyncness.is_some();
         let is_unsafe = item.sig.unsafety.is_some();
-        
-        let generics = item.sig.generics.params
+
+        let generics = item
+            .sig
+            .generics
+            .params
             .iter()
             .map(|param| quote::quote!(#param).to_string())
             .collect();
-            
-        let attributes = item.attrs
+
+        let attributes = item
+            .attrs
             .iter()
             .map(|attr| quote::quote!(#attr).to_string())
             .collect();
-            
+
         // Determine the kind based on attributes and other heuristics
         let kind = Self::determine_kind(&item.attrs, &name);
-        
+
         Self {
             id,
             name,
@@ -89,7 +93,7 @@ impl FunctionNode {
             called_by: HashSet::new(),
         }
     }
-    
+
     /// Creates a new external function node
     ///
     /// # Arguments
@@ -101,18 +105,22 @@ impl FunctionNode {
     /// A new FunctionNode representing an external function
     pub fn external(path: &Path) -> Self {
         let path_str = quote::quote!(#path).to_string();
-        let segments: Vec<String> = path.segments
+        let segments: Vec<String> = path
+            .segments
             .iter()
             .map(|seg| seg.ident.to_string())
             .collect();
-            
-        let name = segments.last().cloned().unwrap_or_else(|| "unknown".to_string());
+
+        let name = segments
+            .last()
+            .cloned()
+            .unwrap_or_else(|| "unknown".to_string());
         let module_path = if segments.len() > 1 {
             segments[..segments.len() - 1].to_vec()
         } else {
             vec![]
         };
-        
+
         Self {
             id: path_str.clone(),
             name,
@@ -129,7 +137,7 @@ impl FunctionNode {
             called_by: HashSet::new(),
         }
     }
-    
+
     /// Generates a unique ID for a function
     fn generate_id(module_path: &[String], name: &str) -> String {
         if module_path.is_empty() {
@@ -138,50 +146,73 @@ impl FunctionNode {
             format!("{}::{}", module_path.join("::"), name)
         }
     }
-    
+
     /// Determines the kind of function based on attributes and name
     fn determine_kind(attrs: &[syn::Attribute], name: &str) -> NodeKind {
         // Check for test attribute
         if attrs.iter().any(|attr| attr.path().is_ident("test")) {
             return NodeKind::Test;
         }
-        
+
         // Check for common endpoint attributes
         for attr in attrs {
             if let Some(ident) = attr.path().get_ident() {
                 let ident_str = ident.to_string();
-                if matches!(ident_str.as_str(), "get" | "post" | "put" | "delete" | "patch" | "head" | "options") {
+                if matches!(
+                    ident_str.as_str(),
+                    "get" | "post" | "put" | "delete" | "patch" | "head" | "options"
+                ) {
                     return NodeKind::Endpoint;
                 }
             }
         }
-        
+
         // Check for main function
         if name == "main" {
             return NodeKind::Endpoint;
         }
-        
+
         NodeKind::Internal
     }
-    
+
     /// Adds a function call from this node
     pub fn add_call(&mut self, target_id: String) {
         self.calls.insert(target_id);
     }
-    
+
     /// Adds a function that calls this node
     pub fn add_caller(&mut self, caller_id: String) {
         self.called_by.insert(caller_id);
     }
-    
+
     /// Returns the full qualified name of the function
     pub fn fully_qualified_name(&self) -> String {
         self.id.clone()
     }
-    
+
     /// Checks if this node is reachable from any endpoint
     pub fn is_reachable(&self) -> bool {
         !self.called_by.is_empty() || matches!(self.kind, NodeKind::Endpoint | NodeKind::Test)
+    }
+
+    /// Returns the file path where this function is defined
+    pub fn file(&self) -> Option<std::path::PathBuf> {
+        self.file_path.as_ref().map(std::path::PathBuf::from)
+    }
+
+    /// Returns the line number where this function is defined
+    pub fn line(&self) -> Option<usize> {
+        self.line_number
+    }
+
+    /// Returns the set of functions this node calls
+    pub fn calls(&self) -> &HashSet<String> {
+        &self.calls
+    }
+
+    /// Returns the set of functions that call this node
+    pub fn called_by(&self) -> &HashSet<String> {
+        &self.called_by
     }
 }
 
@@ -233,7 +264,7 @@ impl fmt::Display for NodeKind {
 mod tests {
     use super::*;
     use syn::parse_quote;
-    
+
     #[test]
     fn test_function_node_from_item() {
         let item: ItemFn = parse_quote! {
@@ -242,26 +273,30 @@ mod tests {
                 Ok(vec![])
             }
         };
-        
-        let node = FunctionNode::from_item_fn(&item, vec!["api".to_string()], Some("src/api.rs".to_string()));
-        
+
+        let node = FunctionNode::from_item_fn(
+            &item,
+            vec!["api".to_string()],
+            Some("src/api.rs".to_string()),
+        );
+
         assert_eq!(node.name, "get_users");
         assert_eq!(node.id, "api::get_users");
         assert!(node.is_async);
         assert!(!node.is_unsafe);
         assert_eq!(node.kind, NodeKind::Endpoint);
     }
-    
+
     #[test]
     fn test_external_node() {
         let path: Path = parse_quote!(std::collections::HashMap::new);
         let node = FunctionNode::external(&path);
-        
+
         assert_eq!(node.name, "new");
         assert_eq!(node.module_path, vec!["std", "collections", "HashMap"]);
         assert_eq!(node.kind, NodeKind::External);
     }
-    
+
     #[test]
     fn test_node_kind_detection() {
         // Test function
@@ -273,7 +308,7 @@ mod tests {
         };
         let node = FunctionNode::from_item_fn(&test_fn, vec![], None);
         assert_eq!(node.kind, NodeKind::Test);
-        
+
         // Main function
         let main_fn: ItemFn = parse_quote! {
             fn main() {
@@ -282,7 +317,7 @@ mod tests {
         };
         let node = FunctionNode::from_item_fn(&main_fn, vec![], None);
         assert_eq!(node.kind, NodeKind::Endpoint);
-        
+
         // Regular function
         let regular_fn: ItemFn = parse_quote! {
             fn helper() -> i32 {

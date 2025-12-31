@@ -1,0 +1,14 @@
+# rustfmt.toml - Rust formatter configuration
+# See: https://rust-lang.github.io/rustfmt/
+
+edition = "2024"
+max_width = 100
+use_small_heuristics = "Default"
+
+# Use 2024 style edition for new formatting rules
+# (imports sorting, long-line handling improvements)
+style_edition = "2024"
+
+# The following options require nightly rustfmt:
+# imports_granularity = "Module"
+# group_imports = "StdExternalCrate"

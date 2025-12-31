@@ -1,185 +1,104 @@
 //! Configuration structures for instrument-rs
+//!
+//! This module defines configuration options for analyzing Rust code
+//! and detecting optimal instrumentation points for observability.
 
+use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 /// The main configuration structure for instrument-rs
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
-    /// Project settings
-    pub project: ProjectConfig,
+    /// Detection threshold (0.0-1.0) for identifying instrumentation points
+    #[serde(default = "default_threshold")]
+    pub threshold: f64,
 
-    /// Instrumentation settings
-    pub instrumentation: InstrumentationConfig,
+    /// Maximum call graph depth to trace
+    #[serde(default = "default_max_depth")]
+    pub max_depth: usize,
 
-    /// Mutation testing settings
-    pub mutation: MutationConfig,
+    /// Include test functions in analysis
+    #[serde(default)]
+    pub include_tests: bool,
 
-    /// Reporting settings
-    pub reporting: ReportingConfig,
-}
+    /// Web framework to use for endpoint detection
+    #[serde(default)]
+    pub framework: FrameworkType,
 
-/// Project-specific configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ProjectConfig {
-    /// Root directory of the project
-    pub root_dir: PathBuf,
-
-    /// Source directories to analyze
-    pub source_dirs: Vec<PathBuf>,
-
-    /// Test directories
-    pub test_dirs: Vec<PathBuf>,
+    /// Custom patterns file path
+    #[serde(default)]
+    pub patterns_file: Option<PathBuf>,
 
     /// Patterns to exclude from analysis
+    #[serde(default = "default_exclude_patterns")]
     pub exclude_patterns: Vec<String>,
 
-    /// Target directory for build artifacts
-    pub target_dir: PathBuf,
+    /// Source directories to analyze (relative to root)
+    #[serde(default = "default_source_dirs")]
+    pub source_dirs: Vec<PathBuf>,
 }
 
-/// Instrumentation configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct InstrumentationConfig {
-    /// Type of instrumentation to apply
-    pub mode: InstrumentationMode,
-
-    /// Whether to preserve original files
-    pub preserve_originals: bool,
-
-    /// Output directory for instrumented files
-    pub output_dir: PathBuf,
-
-    /// Enable parallel processing
-    pub parallel: bool,
-
-    /// Number of threads to use (None = use all available)
-    pub threads: Option<usize>,
+fn default_threshold() -> f64 {
+    0.8
 }
 
-/// Available instrumentation modes
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+fn default_max_depth() -> usize {
+    10
+}
+
+fn default_exclude_patterns() -> Vec<String> {
+    vec![
+        "target".to_string(),
+        "node_modules".to_string(),
+        ".git".to_string(),
+    ]
+}
+
+fn default_source_dirs() -> Vec<PathBuf> {
+    vec![PathBuf::from("src")]
+}
+
+/// Web framework type for endpoint detection
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default, ValueEnum)]
 #[serde(rename_all = "lowercase")]
-pub enum InstrumentationMode {
-    /// Coverage tracking only
-    Coverage,
-    /// Mutation testing only
-    Mutation,
-    /// Both coverage and mutation
-    Combined,
+pub enum FrameworkType {
+    /// Auto-detect framework from dependencies
+    #[default]
+    Auto,
+    /// Axum web framework
+    Axum,
+    /// Actix-web framework
+    Actix,
+    /// Rocket framework
+    Rocket,
+    /// Tonic gRPC framework
+    Tonic,
 }
 
-/// Mutation testing configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MutationConfig {
-    /// Mutation operators to apply
-    pub operators: Vec<MutationOperator>,
-
-    /// Maximum number of mutations per file
-    pub max_mutations_per_file: Option<usize>,
-
-    /// Timeout for each mutation test run (in seconds)
-    pub timeout_seconds: u64,
-
-    /// Random seed for deterministic mutation selection
-    pub seed: Option<u64>,
-}
-
-/// Available mutation operators
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
-#[serde(rename_all = "snake_case")]
-pub enum MutationOperator {
-    /// Replace arithmetic operators (+, -, *, /, %)
-    ArithmeticOperatorReplacement,
-    /// Replace comparison operators (<, >, <=, >=, ==, !=)
-    ComparisonOperatorReplacement,
-    /// Replace logical operators (&&, ||, !)
-    LogicalOperatorReplacement,
-    /// Replace assignment operators (+=, -=, etc.)
-    AssignmentOperatorReplacement,
-    /// Remove statements
-    StatementDeletion,
-    /// Replace constants with different values
-    ConstantReplacement,
-    /// Replace return values
-    ReturnValueReplacement,
-    /// Replace function calls
-    FunctionCallReplacement,
-    /// Modify loop conditions
-    LoopConditionModification,
-}
-
-/// Reporting configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ReportingConfig {
-    /// Output formats for reports
-    pub formats: Vec<ReportFormat>,
-
-    /// Output directory for reports
-    pub output_dir: PathBuf,
-
-    /// Include source code in reports
-    pub include_source: bool,
-
-    /// Minimum coverage threshold (0-100)
-    pub coverage_threshold: Option<f64>,
-
-    /// Minimum mutation score threshold (0-100)
-    pub mutation_threshold: Option<f64>,
-}
-
-/// Available report formats
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+/// Output format for analysis results
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default, ValueEnum)]
 #[serde(rename_all = "lowercase")]
-pub enum ReportFormat {
-    /// JSON format
+pub enum OutputFormat {
+    /// Human-readable tree output with colors
+    #[default]
+    Human,
+    /// JSON output for programmatic consumption
     Json,
-    /// HTML format
-    Html,
-    /// Markdown format
-    Markdown,
-    /// XML format (Cobertura-compatible)
-    Xml,
-    /// LCOV format
-    Lcov,
-    /// Console output
-    Console,
+    /// Mermaid diagram format for visualization
+    Mermaid,
 }
 
 impl Default for Config {
     fn default() -> Self {
         Self {
-            project: ProjectConfig {
-                root_dir: PathBuf::from("."),
-                source_dirs: vec![PathBuf::from("src")],
-                test_dirs: vec![PathBuf::from("tests")],
-                exclude_patterns: vec!["target/**".to_string(), "**/*.rs.bk".to_string()],
-                target_dir: PathBuf::from("target"),
-            },
-            instrumentation: InstrumentationConfig {
-                mode: InstrumentationMode::Coverage,
-                preserve_originals: true,
-                output_dir: PathBuf::from("target/instrument-rs"),
-                parallel: true,
-                threads: None,
-            },
-            mutation: MutationConfig {
-                operators: vec![
-                    MutationOperator::ArithmeticOperatorReplacement,
-                    MutationOperator::ComparisonOperatorReplacement,
-                    MutationOperator::LogicalOperatorReplacement,
-                ],
-                max_mutations_per_file: Some(100),
-                timeout_seconds: 30,
-                seed: None,
-            },
-            reporting: ReportingConfig {
-                formats: vec![ReportFormat::Html, ReportFormat::Json],
-                output_dir: PathBuf::from("target/instrument-rs/reports"),
-                include_source: true,
-                coverage_threshold: Some(80.0),
-                mutation_threshold: Some(60.0),
-            },
+            threshold: default_threshold(),
+            max_depth: default_max_depth(),
+            include_tests: false,
+            framework: FrameworkType::Auto,
+            patterns_file: None,
+            exclude_patterns: default_exclude_patterns(),
+            source_dirs: default_source_dirs(),
         }
     }
 }
@@ -211,8 +130,22 @@ impl Config {
     /// Returns an error if the file cannot be written
     pub fn save(&self, path: impl AsRef<std::path::Path>) -> crate::Result<()> {
         let content = toml::to_string_pretty(self)
-            .map_err(|e| crate::Error::Config(format!("Failed to serialize config: {}", e)))?;
+            .map_err(|e| crate::Error::Config(format!("Failed to serialize config: {e}")))?;
         std::fs::write(path, content)?;
         Ok(())
+    }
+}
+
+impl FrameworkType {
+    /// Get the display name of the framework
+    #[must_use]
+    pub fn name(&self) -> &'static str {
+        match self {
+            Self::Auto => "auto",
+            Self::Axum => "axum",
+            Self::Actix => "actix-web",
+            Self::Rocket => "rocket",
+            Self::Tonic => "tonic",
+        }
     }
 }

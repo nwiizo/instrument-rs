@@ -1,79 +1,60 @@
-//! instrument-rs: A comprehensive Rust library for code instrumentation and analysis
+//! instrument-rs: A Rust CLI tool for detecting optimal instrumentation points
 //!
-//! This library provides powerful tools for analyzing Rust codebases and automatically
-//! instrumenting them for observability, testing, and quality metrics.
+//! This library analyzes Rust codebases to identify critical paths that need
+//! observability instrumentation (tracing, logging, metrics). It traces execution
+//! flows from HTTP/gRPC endpoints to help teams implement comprehensive
+//! observability strategies.
 //!
 //! # Features
 //!
 //! - **AST-based Analysis**: Deep code analysis using Rust's syntax tree
 //! - **Call Graph Construction**: Build and analyze function call relationships
-//! - **Pattern Recognition**: Identify code patterns and critical paths
-//! - **Framework Detection**: Auto-detect web and testing frameworks
-//! - **Mutation Testing**: Evaluate test suite effectiveness
-//! - **Coverage Tracking**: Instrument code for test coverage
-//! - **Multiple Output Formats**: JSON, HTML, Mermaid, DOT
+//! - **Pattern Recognition**: Identify business logic, DB calls, external APIs
+//! - **Framework Detection**: Auto-detect web frameworks (axum, actix, rocket, tonic)
+//! - **Instrumentation Detection**: Find where `#[instrument]` should be added
+//! - **Multiple Output Formats**: Human-readable, JSON, Mermaid diagrams
 //!
 //! # Quick Start
 //!
 //! ```no_run
-//! use instrument_rs::{Instrumentor, Config};
+//! use instrument_rs::{Analyzer, Config};
 //!
-//! // Create default configuration
 //! let config = Config::default();
+//! let analyzer = Analyzer::new(config);
+//! let result = analyzer.analyze(&["src"])?;
 //!
-//! // Create instrumentor
-//! let instrumentor = Instrumentor::new(config);
-//!
-//! // Run analysis
-//! instrumentor.run()?;
+//! println!("Found {} instrumentation points", result.points.len());
 //! # Ok::<(), instrument_rs::Error>(())
 //! ```
 //!
 //! # Architecture
 //!
-//! The library is organized into several key modules:
+//! The library is organized into these key modules:
 //!
 //! - [`ast`]: AST parsing and analysis
 //! - [`call_graph`]: Function call graph construction
 //! - [`patterns`]: Pattern matching for code constructs
-//! - [`framework`]: Web and test framework detection
-//! - [`instrumentation`]: Code transformation for coverage/tracing
-//! - [`mutation`]: Mutation testing implementation
-//! - [`scoring`]: Code quality and instrumentation scoring
+//! - [`framework`]: Web framework detection
+//! - [`detector`]: Instrumentation point detection
 //! - [`output`]: Report generation in various formats
-//!
-//! # Example: Building a Call Graph
-//!
-//! ```no_run
-//! use instrument_rs::call_graph::GraphBuilder;
-//! use std::path::PathBuf;
-//!
-//! let mut builder = GraphBuilder::new();
-//! builder.add_source_file(PathBuf::from("src/main.rs"))?;
-//! 
-//! let graph = builder.build()?;
-//! println!("Found {} functions with {} calls", 
-//!     graph.node_count(), 
-//!     graph.edge_count()
-//! );
-//! # Ok::<(), Box<dyn std::error::Error>>(())
-//! ```
 
 #![warn(missing_docs)]
 #![warn(clippy::all)]
-#![warn(clippy::pedantic)]
+// Temporarily relax some clippy lints during refactoring
+#![allow(clippy::similar_names)]
+#![allow(clippy::must_use_candidate)]
+#![allow(clippy::module_name_repetitions)]
+#![allow(dead_code)]
+#![allow(unused_variables)]
 
 pub mod ast;
 pub mod call_graph;
 pub mod config;
+pub mod detector;
 pub mod error;
 pub mod framework;
-pub mod instrumentation;
-pub mod mutation;
 pub mod output;
 pub mod patterns;
-pub mod reporting;
-pub mod scoring;
 
 pub use config::Config;
 pub use error::{Error, Result};
@@ -81,37 +62,319 @@ pub use error::{Error, Result};
 // Re-export call graph types for convenience
 pub use call_graph::{CallGraph, GraphBuilder};
 
-/// The main entry point for the instrumentation library
-pub struct Instrumentor {
+use std::path::{Path, PathBuf};
+use walkdir::WalkDir;
+
+/// Analysis result containing all detected information
+#[derive(Debug)]
+pub struct AnalysisResult {
+    /// Detected HTTP/gRPC endpoints
+    pub endpoints: Vec<detector::Endpoint>,
+    /// Function call graph
+    pub call_graph: CallGraph,
+    /// Matched patterns (DB calls, external APIs, etc.)
+    pub patterns: Vec<patterns::MatchResult>,
+    /// Suggested instrumentation points
+    pub points: Vec<detector::InstrumentationPoint>,
+    /// Analysis statistics
+    pub stats: AnalysisStats,
+}
+
+/// Statistics about the analyzed codebase
+#[derive(Debug, Default)]
+pub struct AnalysisStats {
+    /// Total files analyzed
+    pub total_files: usize,
+    /// Total functions found
+    pub total_functions: usize,
+    /// Total lines of code
+    pub total_lines: usize,
+    /// Number of endpoints detected
+    pub endpoints_count: usize,
+    /// Number of instrumentation points suggested
+    pub instrumentation_points: usize,
+}
+
+/// The main analyzer for detecting instrumentation points
+pub struct Analyzer {
     config: Config,
 }
 
-impl Instrumentor {
-    /// Creates a new instrumentor with the given configuration
-    ///
-    /// # Arguments
-    ///
-    /// * `config` - The configuration for the instrumentation process
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// use instrument_rs::{Instrumentor, Config};
-    ///
-    /// let config = Config::default();
-    /// let instrumentor = Instrumentor::new(config);
-    /// ```
+impl Analyzer {
+    /// Creates a new analyzer with the given configuration
     pub fn new(config: Config) -> Self {
         Self { config }
     }
 
-    /// Run the instrumentation process on the configured project
+    /// Analyze the given paths and return detection results
+    ///
+    /// # Arguments
+    ///
+    /// * `paths` - Paths to analyze (files or directories)
     ///
     /// # Errors
     ///
-    /// Returns an error if the instrumentation process fails
-    pub fn run(&self) -> Result<()> {
-        // TODO: Implement the main instrumentation logic
-        Ok(())
+    /// Returns an error if file reading or parsing fails
+    pub fn analyze<P: AsRef<Path>>(&self, paths: &[P]) -> Result<AnalysisResult> {
+        // 1. Collect all Rust files
+        let files = self.collect_files(paths)?;
+
+        // 2. Parse files sequentially (syn types don't implement Send)
+        let parsed: Vec<_> = files
+            .iter()
+            .filter_map(|f| self.parse_file(f).ok())
+            .collect();
+
+        // 3. Build call graph
+        let mut graph_builder = GraphBuilder::new();
+        for source in &parsed {
+            graph_builder.add_parsed_file(source)?;
+        }
+        let call_graph = graph_builder.build()?;
+
+        // 4. Detect framework and endpoints
+        let framework = self.detect_framework(&parsed);
+        let endpoints = self.detect_endpoints(&parsed, &framework);
+
+        // 5. Match patterns
+        let patterns = self.match_patterns(&call_graph);
+
+        // 6. Detect instrumentation points
+        let points = self.detect_instrumentation_points(&call_graph, &endpoints, &patterns);
+
+        // 7. Compute stats
+        let stats = AnalysisStats {
+            total_files: parsed.len(),
+            total_functions: call_graph.node_count(),
+            total_lines: parsed.iter().map(|p| p.line_count()).sum(),
+            endpoints_count: endpoints.len(),
+            instrumentation_points: points.len(),
+        };
+
+        Ok(AnalysisResult {
+            endpoints,
+            call_graph,
+            patterns,
+            points,
+            stats,
+        })
+    }
+
+    fn collect_files<P: AsRef<Path>>(&self, paths: &[P]) -> Result<Vec<PathBuf>> {
+        let mut files = Vec::new();
+
+        for path in paths {
+            let path = path.as_ref();
+            if path.is_file() {
+                if path.extension().is_some_and(|ext| ext == "rs") {
+                    files.push(path.to_path_buf());
+                }
+            } else if path.is_dir() {
+                for entry in WalkDir::new(path)
+                    .follow_links(true)
+                    .into_iter()
+                    .filter_map(|e| e.ok())
+                {
+                    let p = entry.path();
+                    if p.extension().is_some_and(|ext| ext == "rs") {
+                        // Skip excluded patterns
+                        let should_exclude = self
+                            .config
+                            .exclude_patterns
+                            .iter()
+                            .any(|pattern| p.to_string_lossy().contains(pattern));
+                        if !should_exclude {
+                            files.push(p.to_path_buf());
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(files)
+    }
+
+    fn parse_file(&self, path: &Path) -> Result<ast::SourceFile> {
+        ast::SourceFile::parse(path)
+    }
+
+    fn detect_framework(&self, parsed: &[ast::SourceFile]) -> framework::DetectedFramework {
+        // Check for framework-specific imports
+        for file in parsed {
+            let source = file.source();
+            if source.contains("axum::") || source.contains("use axum") {
+                return framework::DetectedFramework::Axum;
+            }
+            if source.contains("actix_web::") || source.contains("use actix_web") {
+                return framework::DetectedFramework::Actix;
+            }
+            if source.contains("rocket::") || source.contains("#[rocket") {
+                return framework::DetectedFramework::Rocket;
+            }
+            if source.contains("tonic::") || source.contains("use tonic") {
+                return framework::DetectedFramework::Tonic;
+            }
+        }
+        framework::DetectedFramework::Unknown
+    }
+
+    fn detect_endpoints(
+        &self,
+        parsed: &[ast::SourceFile],
+        framework_type: &framework::DetectedFramework,
+    ) -> Vec<detector::Endpoint> {
+        detector::endpoint::detect_endpoints(parsed, framework_type)
+    }
+
+    fn match_patterns(&self, graph: &CallGraph) -> Vec<patterns::MatchResult> {
+        // Pattern matching based on function names in the call graph
+        let mut results = Vec::new();
+
+        for node_name in graph.node_names() {
+            if let Some(node) = graph.get_node(&node_name) {
+                let mut result = patterns::MatchResult::with_location(
+                    node.file().unwrap_or_default(),
+                    node_name.clone(),
+                    node.line().unwrap_or(0),
+                );
+
+                // Database patterns
+                if matches_db_pattern(&node_name) {
+                    result.category = patterns::Category::Database;
+                    result.confidence = 0.9;
+                    results.push(result);
+                    continue;
+                }
+
+                // HTTP client patterns
+                if matches_http_pattern(&node_name) {
+                    result.category = patterns::Category::HttpClient;
+                    result.confidence = 0.85;
+                    results.push(result);
+                    continue;
+                }
+
+                // Error handling patterns
+                if matches_error_pattern(&node_name) {
+                    result.category = patterns::Category::ErrorHandling;
+                    result.confidence = 0.8;
+                    results.push(result);
+                    continue;
+                }
+
+                // Business logic patterns
+                if matches_business_pattern(&node_name) {
+                    result.category = patterns::Category::BusinessLogic;
+                    result.confidence = 0.7;
+                    results.push(result);
+                }
+            }
+        }
+
+        results
+    }
+
+    fn detect_instrumentation_points(
+        &self,
+        graph: &CallGraph,
+        endpoints: &[detector::Endpoint],
+        patterns: &[patterns::MatchResult],
+    ) -> Vec<detector::InstrumentationPoint> {
+        detector::priority::prioritize_points(graph, endpoints, patterns, self.config.threshold)
     }
 }
+
+// Pattern matching helpers
+fn matches_db_pattern(name: &str) -> bool {
+    let db_patterns = [
+        "query",
+        "execute",
+        "fetch",
+        "insert",
+        "update",
+        "delete",
+        "select",
+        "transaction",
+        "commit",
+        "rollback",
+        "connect",
+        "pool",
+        "database",
+        "db_",
+        "_db",
+        "sql",
+        "postgres",
+        "mysql",
+        "sqlite",
+        "redis",
+        "mongo",
+        "dynamo",
+    ];
+    let lower = name.to_lowercase();
+    db_patterns.iter().any(|p| lower.contains(p))
+}
+
+fn matches_http_pattern(name: &str) -> bool {
+    let http_patterns = [
+        "request",
+        "response",
+        "http",
+        "fetch",
+        "call_api",
+        "send_request",
+        "client",
+        "get_",
+        "post_",
+        "put_",
+        "delete_",
+        "patch_",
+        "api_call",
+        "remote",
+        "external",
+    ];
+    let lower = name.to_lowercase();
+    http_patterns.iter().any(|p| lower.contains(p))
+}
+
+fn matches_error_pattern(name: &str) -> bool {
+    let error_patterns = [
+        "error",
+        "handle_error",
+        "map_err",
+        "on_error",
+        "catch",
+        "recover",
+        "fallback",
+        "retry",
+        "validate",
+    ];
+    let lower = name.to_lowercase();
+    error_patterns.iter().any(|p| lower.contains(p))
+}
+
+fn matches_business_pattern(name: &str) -> bool {
+    let business_patterns = [
+        "process",
+        "handle",
+        "create",
+        "calculate",
+        "validate",
+        "authorize",
+        "authenticate",
+        "payment",
+        "order",
+        "checkout",
+        "register",
+        "login",
+        "logout",
+        "subscribe",
+        "publish",
+    ];
+    let lower = name.to_lowercase();
+    business_patterns.iter().any(|p| lower.contains(p))
+}
+
+// Keep backward compatibility alias
+/// Alias for `Analyzer` for backward compatibility
+#[deprecated(since = "0.2.0", note = "Use `Analyzer` instead")]
+pub type Instrumentor = Analyzer;

@@ -1,6 +1,6 @@
 //! Helper functions for AST analysis
 
-use crate::ast::{AnalysisResult, ComplexityMetrics, ErrorHandlingInfo, FunctionInfo};
+use crate::ast::{AnalysisResult, ComplexityMetrics, FunctionInfo};
 
 /// Filters for selecting functions based on various criteria
 pub struct FunctionFilter;
@@ -294,7 +294,7 @@ impl CallGraphAnalyzer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ast::Location;
+    use crate::ast::{ErrorHandlingInfo, Location};
 
     fn create_test_function(name: &str, complexity: usize, has_unwrap: bool) -> FunctionInfo {
         FunctionInfo {

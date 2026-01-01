@@ -1,4 +1,5 @@
 //! Common test utilities and helpers for integration tests
+#![allow(dead_code)]
 
 use instrument_rs::Config;
 use std::fs;

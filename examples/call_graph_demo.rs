@@ -1,6 +1,6 @@
 //! Example demonstrating call graph construction
 
-use instrument_rs::call_graph::{CallGraph, GraphBuilder};
+use instrument_rs::call_graph::GraphBuilder;
 use std::path::Path;
 
 fn main() {

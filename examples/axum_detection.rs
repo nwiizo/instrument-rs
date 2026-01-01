@@ -3,7 +3,7 @@
 //! This example shows how to use the framework detection system
 //! to identify Axum usage in a project and extract endpoint information.
 
-use instrument_rs::framework::web::{DetectorRegistry, FrameworkDetector};
+use instrument_rs::framework::web::DetectorRegistry;
 use std::path::Path;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {

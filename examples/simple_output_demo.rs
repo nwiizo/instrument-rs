@@ -1,7 +1,5 @@
 //! Simple demonstration of output formatters without dependencies on other modules
 
-use std::collections::HashMap;
-
 fn main() {
     println!("=== Output Formatter Demonstration ===\n");
 

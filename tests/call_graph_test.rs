@@ -2,7 +2,6 @@
 
 use instrument_rs::call_graph::{CallKind, GraphBuilder, NodeKind};
 use std::fs;
-use std::path::Path;
 use tempfile::TempDir;
 
 #[test]

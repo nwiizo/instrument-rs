@@ -116,31 +116,27 @@ graph TD
 ## 🔧 Command Line Options
 
 ```bash
-instrument-rs [OPTIONS] [PATH] [COMMAND]
+instrument-rs [OPTIONS] [PATHS]... [COMMAND]
 
 ARGUMENTS:
-    [PATH]                           Path to analyze [default: .]
+    [PATHS]...                       Paths to analyze [default: .]
 
 OPTIONS:
-    -t, --threshold <FLOAT>          Detection threshold (0.0-1.0) [default: 0.8]
-    -m, --min-lines <NUM>            Minimum function lines [default: 3]
-    --trace-from-endpoints           Trace execution paths from entry points
-    --framework <NAME>               Framework [axum|actix|rocket|tonic|auto]
-    --max-depth <NUM>                Maximum call depth to analyze [default: 10]
-    --include-tests                  Include test endpoints in analysis
-    --show-call-graph                Display visual call graph
+    --trace-from-endpoints           Trace from HTTP/gRPC endpoints
+    --framework <FRAMEWORK>          Framework [auto|axum|actix|rocket|tonic]
+    -f, --format <FORMAT>            Output format [human|json|mermaid]
+    --filter-path <REGEX>            Filter paths by pattern (regex)
+    --max-depth <NUM>                Maximum call graph depth [default: 10]
+    --threshold <FLOAT>              Detection threshold (0.0-1.0) [default: 0.8]
+    --include-tests                  Include test functions in analysis
     --patterns <FILE>                Custom patterns file
-    -f, --format <FORMAT>            Output format [human|json|dot|mermaid]
-    --filter-path <REGEX>            Only show paths matching regex
-    -c, --config <FILE>              Configuration file path
-    -v, --verbose                    Increase verbosity (use multiple times)
+    -o, --output <FILE>              Output file (default: stdout)
     -h, --help                       Print help information
     -V, --version                    Print version information
 
 COMMANDS:
-    analyze                          Analyze code and suggest instrumentation points
-    init                             Initialize a new configuration file
-    generate                         Generate instrumentation code
+    init                             Initialize configuration file
+    check                            Check instrumentation coverage (for CI)
     help                             Print this message or the help of subcommands
 ```
 
@@ -166,37 +162,42 @@ comprehensive observability implementation plans. Run `instrument-rs -h` for opt
 ```
 instrument-rs/
 ├── src/
-│   ├── main.rs              # CLI entry point (streamlined)
-│   ├── lib.rs               # Library interface
-│   ├── dependencies.rs      # Cargo.toml dependency analysis (Phase 2)
-│   ├── ast/                 # AST analysis and manipulation
-│   │   ├── analyzer.rs      # Core analysis functionality
-│   │   ├── visitor.rs       # AST traversal with accurate spans
+│   ├── main.rs              # CLI entry point
+│   ├── lib.rs               # Library interface and Analyzer
+│   ├── config.rs            # Configuration handling
+│   ├── error.rs             # Error types
+│   ├── dependencies.rs      # Cargo.toml dependency analysis
+│   ├── ast/                 # AST analysis
+│   │   ├── analyzer.rs      # Core AST analysis
+│   │   ├── visitor.rs       # AST traversal with spans
 │   │   └── helpers.rs       # AST manipulation helpers
 │   ├── call_graph/          # Call graph construction
 │   │   ├── builder.rs       # Graph builder
 │   │   ├── graph.rs         # Graph data structure
 │   │   └── resolver.rs      # Symbol resolution
 │   ├── detector/            # Instrumentation detection
-│   │   ├── existing.rs      # Existing instrumentation finder
+│   │   ├── existing.rs      # Existing #[instrument] finder
 │   │   ├── priority.rs      # Context-aware prioritization
-│   │   └── patterns.rs      # Detection patterns
+│   │   └── gaps.rs          # Instrumentation gap analysis
 │   ├── framework/           # Framework detection
-│   │   ├── detector.rs      # Auto-detection logic
 │   │   └── web/             # Web framework adapters
 │   │       ├── axum.rs      # Axum support
 │   │       ├── actix.rs     # Actix-web support
 │   │       ├── rocket.rs    # Rocket support
 │   │       └── tonic.rs     # Tonic/gRPC support
-│   ├── patterns/            # Pattern matching system
+│   ├── patterns/            # Pattern matching
 │   │   ├── matcher.rs       # Pattern matching engine
 │   │   └── pattern_set.rs   # Pattern definitions
 │   └── output/              # Output formatting
 │       ├── json.rs          # JSON formatter
 │       ├── mermaid.rs       # Mermaid diagrams
 │       └── tree.rs          # Tree visualization
+├── tests/                   # Integration & E2E tests
+│   ├── e2e_tests.rs         # End-to-end tests (16 tests)
+│   ├── framework_detection.rs
+│   ├── pattern_matching.rs
+│   └── common/              # Test utilities
 ├── examples/                # Example usage
-├── tests/                   # Integration tests
 └── CLAUDE.md                # AI assistant instructions
 ```
 
@@ -220,6 +221,9 @@ cargo run -- . --trace-from-endpoints
 ```bash
 # Run all tests
 cargo test
+
+# Run E2E tests only
+cargo test --test e2e_tests
 
 # Run with output
 cargo test -- --nocapture
@@ -246,12 +250,10 @@ cargo doc --no-deps --open
 ### Completed
 - **Phase 1**: Core refactoring - streamlined architecture, removed unused modules
 - **Phase 2**: Smart analysis - cargo_metadata integration, dependency-aware detection
-
-### In Progress
-- **Prometheus/OpenTelemetry Integration**: Verify compatibility with observability tools
-- **Coverage Metrics**: Calculate observability coverage by module/criticality
+- **E2E Tests**: 16 comprehensive end-to-end tests with sample projects
 
 ### Planned
+- **Existing Instrumentation Output**: Show detected `#[instrument]` macros in CLI output
 - **LSP Integration**: Type information for more accurate detection
 - **Custom Pattern Files**: `.instrument-rs.toml` for project-specific patterns
 - **Additional Frameworks**: Warp, Poem, Salvo support

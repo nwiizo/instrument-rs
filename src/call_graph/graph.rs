@@ -413,7 +413,7 @@ mod tests {
         let mut graph = CallGraph::new();
 
         // Add nodes
-        let mut main = FunctionNode {
+        let main = FunctionNode {
             id: "main".to_string(),
             name: "main".to_string(),
             module_path: vec![],

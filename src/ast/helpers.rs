@@ -284,7 +284,6 @@ impl CallGraphAnalyzer {
 ///
 /// Future enhancement: Add methods to generate call graphs in various
 /// formats (DOT, mermaid, JSON) for visualization tools.
-
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -110,7 +110,6 @@ impl Default for AstAnalyzer {
 /// 1. Storing file hashes and analysis results
 /// 2. Only reanalyzing files with changed hashes
 /// 3. Updating dependency graphs for affected modules
-
 #[cfg(test)]
 mod tests {
     use super::*;

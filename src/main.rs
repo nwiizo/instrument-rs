@@ -70,9 +70,21 @@ enum Commands {
     },
     /// Check instrumentation coverage (for CI)
     Check {
+        /// Paths to analyze (default: current directory)
+        #[arg(default_value = ".")]
+        paths: Vec<PathBuf>,
+
         /// Minimum coverage threshold (0-100)
         #[arg(long, default_value = "80")]
         threshold: f64,
+
+        /// Only consider critical gaps (ignore minor/major)
+        #[arg(long)]
+        critical_only: bool,
+
+        /// Output format (human or json)
+        #[arg(short, long, value_enum, default_value = "human")]
+        format: OutputFormat,
     },
 }
 
@@ -83,8 +95,13 @@ fn main() -> anyhow::Result<()> {
         Some(Commands::Init { output }) => {
             init_config(output)?;
         }
-        Some(Commands::Check { threshold }) => {
-            check_coverage(&cli, threshold)?;
+        Some(Commands::Check {
+            ref paths,
+            threshold,
+            critical_only,
+            format,
+        }) => {
+            check_coverage(&cli, paths, threshold, critical_only, format)?;
         }
         None => {
             analyze(&cli)?;
@@ -101,27 +118,103 @@ fn init_config(output: PathBuf) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn check_coverage(cli: &Cli, threshold: f64) -> anyhow::Result<()> {
+fn check_coverage(
+    cli: &Cli,
+    paths: &[PathBuf],
+    threshold: f64,
+    critical_only: bool,
+    format: OutputFormat,
+) -> anyhow::Result<()> {
     let config = build_config(cli);
     let analyzer = Analyzer::new(config);
 
-    let paths: Vec<&str> = cli
-        .paths
-        .iter()
-        .map(|p| p.to_str().unwrap_or("."))
-        .collect();
+    let paths: Vec<&str> = paths.iter().map(|p| p.to_str().unwrap_or(".")).collect();
     let result = analyzer.analyze(&paths)?;
 
-    let coverage = if result.stats.total_functions > 0 {
-        (result.stats.instrumentation_points as f64 / result.stats.total_functions as f64) * 100.0
+    // Calculate gap-based coverage (more accurate)
+    let total_points = result.stats.instrumentation_points;
+    let gaps = if critical_only {
+        result
+            .gaps
+            .iter()
+            .filter(|g| matches!(g.severity, instrument_rs::detector::GapSeverity::Critical))
+            .count()
+    } else {
+        result.stats.gaps_count
+    };
+
+    let covered = total_points.saturating_sub(gaps);
+    let coverage = if total_points > 0 {
+        (covered as f64 / total_points as f64) * 100.0
     } else {
         100.0
     };
 
-    println!("Instrumentation coverage: {coverage:.1}%");
+    match format {
+        OutputFormat::Json => {
+            let output = serde_json::json!({
+                "coverage": coverage,
+                "threshold": threshold,
+                "passed": coverage >= threshold,
+                "total_points": total_points,
+                "covered": covered,
+                "gaps": gaps,
+                "critical_only": critical_only,
+            });
+            println!("{}", serde_json::to_string_pretty(&output)?);
+        }
+        _ => {
+            println!("Instrumentation Coverage Check");
+            println!("══════════════════════════════");
+            println!();
+            println!("📊 Results:");
+            println!("   Total instrumentation points: {}", total_points);
+            println!(
+                "   Existing instrumentation:     {}",
+                result.stats.existing_count
+            );
+            println!(
+                "   Gaps:                         {}{}",
+                gaps,
+                if critical_only {
+                    " (critical only)"
+                } else {
+                    ""
+                }
+            );
+            println!("   Coverage:                     {:.1}%", coverage);
+            println!("   Threshold:                    {:.1}%", threshold);
+            println!();
+
+            if coverage >= threshold {
+                println!("✅ PASSED: Coverage meets threshold");
+            } else {
+                println!(
+                    "❌ FAILED: Coverage {:.1}% is below threshold {:.1}%",
+                    coverage, threshold
+                );
+
+                // Show critical gaps
+                if !result.gaps.is_empty() {
+                    println!();
+                    println!("🚨 Critical gaps to fix:");
+                    for gap in result.gaps.iter().take(5) {
+                        println!(
+                            "   - {} ({}:{})",
+                            gap.location.function_name,
+                            gap.location.file.display(),
+                            gap.location.line
+                        );
+                    }
+                    if result.gaps.len() > 5 {
+                        println!("   ... and {} more", result.gaps.len() - 5);
+                    }
+                }
+            }
+        }
+    }
 
     if coverage < threshold {
-        eprintln!("Coverage {coverage:.1}% is below threshold {threshold:.1}%");
         std::process::exit(1);
     }
 

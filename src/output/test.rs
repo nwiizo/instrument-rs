@@ -44,6 +44,8 @@ mod tests {
             call_graph: CallGraph::new(),
             patterns: vec![],
             points,
+            existing_instrumentation: vec![],
+            gaps: vec![],
             dependencies: ProjectDependencies::default(),
             stats: AnalysisStats {
                 total_files: 5,
@@ -51,6 +53,8 @@ mod tests {
                 total_lines: 500,
                 endpoints_count: 1,
                 instrumentation_points: 1,
+                existing_count: 0,
+                gaps_count: 0,
             },
         }
     }

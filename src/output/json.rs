@@ -25,6 +25,8 @@ impl OutputFormatter for JsonFormatter {
                 "total_lines": result.stats.total_lines,
                 "endpoints_count": result.stats.endpoints_count,
                 "instrumentation_points": result.stats.instrumentation_points,
+                "existing_count": result.stats.existing_count,
+                "gaps_count": result.stats.gaps_count,
             },
             "endpoints": result.endpoints.iter().map(|e| {
                 serde_json::json!({
@@ -35,6 +37,35 @@ impl OutputFormatter for JsonFormatter {
                     "location": {
                         "file": e.location.file.display().to_string(),
                         "line": e.location.line,
+                    }
+                })
+            }).collect::<Vec<_>>(),
+            "existing_instrumentation": result.existing_instrumentation.iter().map(|e| {
+                serde_json::json!({
+                    "kind": format!("{:?}", e.kind),
+                    "span_name": e.span_name,
+                    "quality_score": e.quality.score,
+                    "issues": e.quality.issues.iter().map(|i| {
+                        serde_json::json!({
+                            "kind": format!("{:?}", i.kind),
+                            "message": i.message,
+                        })
+                    }).collect::<Vec<_>>(),
+                    "location": {
+                        "file": e.location.file.display().to_string(),
+                        "line": e.location.line,
+                    }
+                })
+            }).collect::<Vec<_>>(),
+            "gaps": result.gaps.iter().map(|g| {
+                serde_json::json!({
+                    "severity": format!("{:?}", g.severity),
+                    "description": g.description,
+                    "suggested_fix": g.suggested_fix,
+                    "location": {
+                        "file": g.location.file.display().to_string(),
+                        "line": g.location.line,
+                        "function": g.location.function_name,
                     }
                 })
             }).collect::<Vec<_>>(),

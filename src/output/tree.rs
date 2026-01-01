@@ -3,6 +3,7 @@
 use super::traits::{FormatterOptions, OutputFormat, OutputFormatter};
 use crate::AnalysisResult;
 use crate::Result;
+use crate::detector::{ExistingKind, GapSeverity};
 use colored::*;
 
 /// Tree formatter for human-readable output
@@ -27,6 +28,49 @@ impl TreeFormatter {
             }
         } else {
             name.normal()
+        }
+    }
+
+    fn format_existing_kind(&self, kind: &ExistingKind) -> &'static str {
+        match kind {
+            ExistingKind::TracingInstrument => "#[instrument]",
+            ExistingKind::ManualSpan => "span!()",
+            ExistingKind::LogMacro => "log macro",
+            ExistingKind::Metrics => "metrics",
+        }
+    }
+
+    fn format_gap_severity(&self, severity: &GapSeverity) -> ColoredString {
+        if self.options.use_colors {
+            match severity {
+                GapSeverity::Critical => "Critical".red().bold(),
+                GapSeverity::Major => "Major".yellow(),
+                GapSeverity::Minor => "Minor".normal(),
+            }
+        } else {
+            match severity {
+                GapSeverity::Critical => "Critical".normal(),
+                GapSeverity::Major => "Major".normal(),
+                GapSeverity::Minor => "Minor".normal(),
+            }
+        }
+    }
+
+    fn format_quality_status(&self, score: f64) -> ColoredString {
+        if self.options.use_colors {
+            if score >= 0.8 {
+                "✅".green()
+            } else if score >= 0.5 {
+                "⚠️".yellow()
+            } else {
+                "❌".red()
+            }
+        } else if score >= 0.8 {
+            "OK".normal()
+        } else if score >= 0.5 {
+            "WARN".normal()
+        } else {
+            "BAD".normal()
         }
     }
 }
@@ -58,8 +102,16 @@ impl OutputFormatter for TreeFormatter {
             result.stats.endpoints_count
         ));
         output.push_str(&format!(
-            "   Instrumentation:    {} points\n\n",
+            "   Instrumentation:    {} points\n",
             result.stats.instrumentation_points
+        ));
+        output.push_str(&format!(
+            "   Existing:           {} found\n",
+            result.stats.existing_count
+        ));
+        output.push_str(&format!(
+            "   Gaps:               {}\n\n",
+            result.stats.gaps_count
         ));
 
         // Endpoints
@@ -79,9 +131,51 @@ impl OutputFormatter for TreeFormatter {
             output.push('\n');
         }
 
-        // Instrumentation points
-        if !result.points.is_empty() {
-            output.push_str("📍 Instrumentation Points\n");
+        // Existing Instrumentation
+        if !result.existing_instrumentation.is_empty() {
+            output.push_str("🎯 Existing Instrumentation\n");
+            for existing in &result.existing_instrumentation {
+                let status = self.format_quality_status(existing.quality.score);
+                let kind = self.format_existing_kind(&existing.kind);
+                let name = existing
+                    .span_name
+                    .as_ref()
+                    .map_or("(unnamed)".to_string(), |n| format!("\"{}\"", n));
+
+                output.push_str(&format!("   {} {} {}\n", status, kind, name));
+                output.push_str(&format!(
+                    "      {}:{}\n",
+                    existing.location.file.display(),
+                    existing.location.line
+                ));
+
+                // Show quality issues if any
+                for issue in &existing.quality.issues {
+                    output.push_str(&format!("      ⚠️  {}\n", issue.message));
+                }
+            }
+            output.push('\n');
+        }
+
+        // Instrumentation Gaps
+        if !result.gaps.is_empty() {
+            output.push_str("🚨 Instrumentation Gaps\n");
+            for gap in &result.gaps {
+                let severity = self.format_gap_severity(&gap.severity);
+                output.push_str(&format!("   [{}] {}\n", severity, gap.description));
+                output.push_str(&format!(
+                    "      Location: {}:{}\n",
+                    gap.location.file.display(),
+                    gap.location.line
+                ));
+                output.push_str(&format!("      Suggested: {}\n", gap.suggested_fix));
+                output.push('\n');
+            }
+        }
+
+        // Instrumentation points (for backward compatibility, but less prominent)
+        if !result.points.is_empty() && result.existing_instrumentation.is_empty() {
+            output.push_str("📍 Suggested Instrumentation Points\n");
             for point in &result.points {
                 let priority = self.format_priority(&point.priority);
                 output.push_str(&format!(

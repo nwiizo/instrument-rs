@@ -89,6 +89,10 @@ pub struct AnalysisResult {
     pub patterns: Vec<patterns::MatchResult>,
     /// Suggested instrumentation points
     pub points: Vec<detector::InstrumentationPoint>,
+    /// Existing instrumentation found in code
+    pub existing_instrumentation: Vec<detector::ExistingInstrumentation>,
+    /// Gaps in instrumentation coverage
+    pub gaps: Vec<detector::InstrumentationGap>,
     /// Project dependencies (for context-aware detection)
     pub dependencies: ProjectDependencies,
     /// Analysis statistics
@@ -108,6 +112,10 @@ pub struct AnalysisStats {
     pub endpoints_count: usize,
     /// Number of instrumentation points suggested
     pub instrumentation_points: usize,
+    /// Number of existing instrumentation found
+    pub existing_count: usize,
+    /// Number of instrumentation gaps found
+    pub gaps_count: usize,
 }
 
 /// The main analyzer for detecting instrumentation points
@@ -162,13 +170,21 @@ impl Analyzer {
         // 6. Detect instrumentation points
         let points = self.detect_instrumentation_points(&call_graph, &endpoints, &patterns);
 
-        // 7. Compute stats
+        // 7. Detect existing instrumentation
+        let existing_instrumentation = detector::existing::detect_existing_instrumentation(&parsed);
+
+        // 8. Detect gaps (instrumentation points without existing instrumentation)
+        let gaps = self.detect_gaps(&points, &existing_instrumentation);
+
+        // 9. Compute stats
         let stats = AnalysisStats {
             total_files: parsed.len(),
             total_functions: call_graph.node_count(),
             total_lines: parsed.iter().map(|p| p.line_count()).sum(),
             endpoints_count: endpoints.len(),
             instrumentation_points: points.len(),
+            existing_count: existing_instrumentation.len(),
+            gaps_count: gaps.len(),
         };
 
         // Extract dependencies from context
@@ -179,6 +195,8 @@ impl Analyzer {
             call_graph,
             patterns,
             points,
+            existing_instrumentation,
+            gaps,
             dependencies,
             stats,
         })
@@ -422,6 +440,49 @@ impl Analyzer {
         patterns: &[patterns::MatchResult],
     ) -> Vec<detector::InstrumentationPoint> {
         detector::priority::prioritize_points(graph, endpoints, patterns, self.config.threshold)
+    }
+
+    /// Detect gaps between suggested instrumentation points and existing instrumentation
+    fn detect_gaps(
+        &self,
+        points: &[detector::InstrumentationPoint],
+        existing: &[detector::ExistingInstrumentation],
+    ) -> Vec<detector::InstrumentationGap> {
+        let mut gaps = Vec::new();
+
+        for point in points {
+            // Check if this point has existing instrumentation
+            let has_existing = existing.iter().any(|e| {
+                e.location.file == point.location.file
+                    && (e.location.line == point.location.line
+                        || e.location.line == point.location.line.saturating_sub(1)
+                        || e.location.line == point.location.line + 1)
+            });
+
+            if !has_existing {
+                let severity = match point.priority {
+                    detector::Priority::Critical => detector::GapSeverity::Critical,
+                    detector::Priority::High => detector::GapSeverity::Major,
+                    _ => detector::GapSeverity::Minor,
+                };
+
+                gaps.push(detector::InstrumentationGap {
+                    location: point.location.clone(),
+                    description: format!(
+                        "{} ({}) has no instrumentation",
+                        point.location.function_name,
+                        point.kind.name()
+                    ),
+                    suggested_fix: format!(
+                        "#[instrument(name = \"{}\")]",
+                        point.suggested_span_name
+                    ),
+                    severity,
+                });
+            }
+        }
+
+        gaps
     }
 }
 

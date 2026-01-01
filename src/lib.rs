@@ -50,6 +50,9 @@
 pub mod ast;
 pub mod call_graph;
 pub mod config;
+pub mod dependencies;
+#[cfg(test)]
+mod dependencies_test;
 pub mod detector;
 pub mod error;
 pub mod framework;
@@ -57,6 +60,7 @@ pub mod output;
 pub mod patterns;
 
 pub use config::Config;
+pub use dependencies::{DetectionContext, ProjectDependencies};
 pub use error::{Error, Result};
 
 // Re-export call graph types for convenience
@@ -76,6 +80,8 @@ pub struct AnalysisResult {
     pub patterns: Vec<patterns::MatchResult>,
     /// Suggested instrumentation points
     pub points: Vec<detector::InstrumentationPoint>,
+    /// Project dependencies (for context-aware detection)
+    pub dependencies: ProjectDependencies,
     /// Analysis statistics
     pub stats: AnalysisStats,
 }
@@ -116,6 +122,11 @@ impl Analyzer {
     ///
     /// Returns an error if file reading or parsing fails
     pub fn analyze<P: AsRef<Path>>(&self, paths: &[P]) -> Result<AnalysisResult> {
+        // 0. Analyze project dependencies for context-aware detection
+        let project_root = paths.first().map(|p| p.as_ref()).unwrap_or(Path::new("."));
+        let dependencies = ProjectDependencies::from_manifest(project_root).unwrap_or_default();
+        let context = DetectionContext::from_deps(dependencies);
+
         // 1. Collect all Rust files
         let files = self.collect_files(paths)?;
 
@@ -132,12 +143,12 @@ impl Analyzer {
         }
         let call_graph = graph_builder.build()?;
 
-        // 4. Detect framework and endpoints
-        let framework = self.detect_framework(&parsed);
+        // 4. Detect framework and endpoints (use deps for framework hint)
+        let framework = self.detect_framework_with_context(&parsed, &context);
         let endpoints = self.detect_endpoints(&parsed, &framework);
 
-        // 5. Match patterns
-        let patterns = self.match_patterns(&call_graph);
+        // 5. Match patterns with dependency context
+        let patterns = self.match_patterns_with_context(&call_graph, &context);
 
         // 6. Detect instrumentation points
         let points = self.detect_instrumentation_points(&call_graph, &endpoints, &patterns);
@@ -151,11 +162,15 @@ impl Analyzer {
             instrumentation_points: points.len(),
         };
 
+        // Extract dependencies from context
+        let dependencies = context.deps;
+
         Ok(AnalysisResult {
             endpoints,
             call_graph,
             patterns,
             points,
+            dependencies,
             stats,
         })
     }
@@ -218,6 +233,46 @@ impl Analyzer {
         framework::DetectedFramework::Unknown
     }
 
+    /// Detect framework using both source analysis and dependency information
+    fn detect_framework_with_context(
+        &self,
+        parsed: &[ast::SourceFile],
+        context: &DetectionContext,
+    ) -> framework::DetectedFramework {
+        // First check dependencies (more reliable)
+        if context
+            .deps
+            .frameworks
+            .contains(&dependencies::FrameworkCrate::Axum)
+        {
+            return framework::DetectedFramework::Axum;
+        }
+        if context
+            .deps
+            .frameworks
+            .contains(&dependencies::FrameworkCrate::ActixWeb)
+        {
+            return framework::DetectedFramework::Actix;
+        }
+        if context
+            .deps
+            .frameworks
+            .contains(&dependencies::FrameworkCrate::Rocket)
+        {
+            return framework::DetectedFramework::Rocket;
+        }
+        if context
+            .deps
+            .frameworks
+            .contains(&dependencies::FrameworkCrate::Tonic)
+        {
+            return framework::DetectedFramework::Tonic;
+        }
+
+        // Fall back to source analysis
+        self.detect_framework(parsed)
+    }
+
     fn detect_endpoints(
         &self,
         parsed: &[ast::SourceFile],
@@ -266,6 +321,83 @@ impl Analyzer {
                 if matches_business_pattern(&node_name) {
                     result.category = patterns::Category::BusinessLogic;
                     result.confidence = 0.7;
+                    results.push(result);
+                }
+            }
+        }
+
+        results
+    }
+
+    /// Match patterns with dependency context for smarter detection
+    ///
+    /// This method uses project dependency information to:
+    /// - Avoid false positives (e.g., "get_user" won't be HTTP if no reqwest)
+    /// - Boost confidence for known patterns (e.g., DB patterns if sqlx is used)
+    fn match_patterns_with_context(
+        &self,
+        graph: &CallGraph,
+        context: &DetectionContext,
+    ) -> Vec<patterns::MatchResult> {
+        let mut results = Vec::new();
+
+        for node_name in graph.node_names() {
+            if let Some(node) = graph.get_node(&node_name) {
+                let mut result = patterns::MatchResult::with_location(
+                    node.file().unwrap_or_default(),
+                    node_name.clone(),
+                    node.line().unwrap_or(0),
+                );
+
+                // Database patterns - only if project uses a DB crate
+                if context.is_likely_db_operation(&node_name) {
+                    result.category = patterns::Category::Database;
+                    result.confidence = context.db_priority;
+                    results.push(result);
+                    continue;
+                }
+
+                // HTTP client patterns - only if project uses an HTTP client
+                if context.is_likely_http_call(&node_name) {
+                    result.category = patterns::Category::HttpClient;
+                    result.confidence = context.http_priority;
+                    results.push(result);
+                    continue;
+                }
+
+                // Cache patterns - only if project uses a cache crate
+                if context.is_likely_cache_operation(&node_name) {
+                    result.category = patterns::Category::Cache;
+                    result.confidence = context.cache_priority;
+                    results.push(result);
+                    continue;
+                }
+
+                // Error handling patterns (always relevant)
+                if matches_error_pattern(&node_name) {
+                    result.category = patterns::Category::ErrorHandling;
+                    result.confidence = 0.8;
+                    results.push(result);
+                    continue;
+                }
+
+                // Business logic patterns (always relevant)
+                if matches_business_pattern(&node_name) {
+                    result.category = patterns::Category::BusinessLogic;
+                    result.confidence = 0.7;
+                    results.push(result);
+                    continue;
+                }
+
+                // Fallback: use old naive patterns if context check passed
+                // This handles cases where deps weren't detected but source shows usage
+                if matches_db_pattern(&node_name) && context.deps.has_database() {
+                    result.category = patterns::Category::Database;
+                    result.confidence = 0.7; // Lower confidence for fallback
+                    results.push(result);
+                } else if matches_http_pattern(&node_name) && context.deps.has_http_client() {
+                    result.category = patterns::Category::HttpClient;
+                    result.confidence = 0.6; // Lower confidence for fallback
                     results.push(result);
                 }
             }

@@ -5,6 +5,7 @@ mod tests {
     use super::super::*;
     use crate::AnalysisResult;
     use crate::AnalysisStats;
+    use crate::ProjectDependencies;
     use crate::call_graph::CallGraph;
     use crate::detector::{
         Endpoint, InstrumentationKind, InstrumentationPoint, Location, Priority,
@@ -43,6 +44,7 @@ mod tests {
             call_graph: CallGraph::new(),
             patterns: vec![],
             points,
+            dependencies: ProjectDependencies::default(),
             stats: AnalysisStats {
                 total_files: 5,
                 total_functions: 20,

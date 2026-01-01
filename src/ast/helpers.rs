@@ -18,10 +18,7 @@ impl FunctionFilter {
     /// # Returns
     ///
     /// Vector of functions exceeding the complexity threshold
-    pub fn by_complexity<'a>(
-        functions: &'a [FunctionInfo],
-        threshold: usize,
-    ) -> Vec<&'a FunctionInfo> {
+    pub fn by_complexity(functions: &[FunctionInfo], threshold: usize) -> Vec<&FunctionInfo> {
         functions
             .iter()
             .filter(|f| f.complexity.cyclomatic > threshold)
@@ -30,7 +27,7 @@ impl FunctionFilter {
 
     /// Filter functions that use unsafe error handling
     ///
-    /// Returns functions that use unwrap() or expect() calls
+    /// Returns functions that use `unwrap()` or `expect()` calls
     ///
     /// # Arguments
     ///
@@ -39,7 +36,7 @@ impl FunctionFilter {
     /// # Returns
     ///
     /// Vector of functions with unsafe error handling
-    pub fn with_unsafe_error_handling<'a>(functions: &'a [FunctionInfo]) -> Vec<&'a FunctionInfo> {
+    pub fn with_unsafe_error_handling(functions: &[FunctionInfo]) -> Vec<&FunctionInfo> {
         functions
             .iter()
             .filter(|f| f.error_handling.unwrap_calls > 0 || f.error_handling.expect_calls > 0)
@@ -55,7 +52,7 @@ impl FunctionFilter {
     /// # Returns
     ///
     /// Vector of async functions
-    pub fn async_functions<'a>(functions: &'a [FunctionInfo]) -> Vec<&'a FunctionInfo> {
+    pub fn async_functions(functions: &[FunctionInfo]) -> Vec<&FunctionInfo> {
         functions.iter().filter(|f| f.is_async).collect()
     }
 
@@ -71,10 +68,7 @@ impl FunctionFilter {
     /// # Returns
     ///
     /// Vector of functions exceeding the line count threshold
-    pub fn by_line_count<'a>(
-        functions: &'a [FunctionInfo],
-        threshold: usize,
-    ) -> Vec<&'a FunctionInfo> {
+    pub fn by_line_count(functions: &[FunctionInfo], threshold: usize) -> Vec<&FunctionInfo> {
         functions
             .iter()
             .filter(|f| f.complexity.lines_of_code > threshold)

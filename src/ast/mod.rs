@@ -69,7 +69,7 @@ pub struct SourceFile {
 }
 
 impl SourceFile {
-    /// Creates a new SourceFile instance
+    /// Creates a new `SourceFile` instance
     ///
     /// # Arguments
     ///
@@ -225,7 +225,7 @@ pub struct FunctionInfo {
     /// Function name
     pub name: String,
 
-    /// Full path to the function (module::function)
+    /// Full path to the function (`module::function`)
     pub full_path: String,
 
     /// Whether it's async

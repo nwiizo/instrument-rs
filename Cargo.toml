@@ -14,7 +14,7 @@ categories = ["development-tools::testing"]
 # AST parsing and manipulation
 syn = { version = "2.0", features = ["full", "visit", "visit-mut", "extra-traits"] }
 quote = "1.0"
-proc-macro2 = "1.0"
+proc-macro2 = { version = "1.0", features = ["span-locations"] }
 
 # CLI and configuration
 clap = { version = "4.5", features = ["derive"] }
@@ -40,6 +40,9 @@ sha2 = "0.10"
 
 # Regular expressions for pattern matching
 regex = "1.10"
+
+# Cargo metadata for dependency analysis
+cargo_metadata = "0.18"
 
 # Random for mutation selection
 rand = "0.8"
@@ -80,10 +83,28 @@ unsafe_op_in_unsafe_fn = "warn"
 
 [lints.clippy]
 # Pedantic lints for better code quality
-all = "warn"
-pedantic = "warn"
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
 # Allow some pedantic lints that are too noisy
 module_name_repetitions = "allow"
 must_use_candidate = "allow"
 missing_errors_doc = "allow"
 missing_panics_doc = "allow"
+# These are acceptable in our statistical calculations
+cast_precision_loss = "allow"
+# Allow &self on methods that could be functions for API consistency
+unused_self = "allow"
+# AST visitor patterns can be long
+too_many_lines = "allow"
+# Allow single match for clarity in AST processing
+single_match = "allow"
+# AST structs often have many boolean flags
+struct_excessive_bools = "allow"
+# Explicit closures can be clearer
+redundant_closure_for_method_calls = "allow"
+# Single char pattern is less readable
+single_char_pattern = "allow"
+# PathBuf by value is often intentional for ownership
+needless_pass_by_value = "allow"
+# Explicit lifetimes can be clearer
+elidable_lifetime_names = "allow"

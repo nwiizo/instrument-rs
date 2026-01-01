@@ -102,11 +102,12 @@ impl AstVisitor {
         self.context.module_path.join("::")
     }
 
-    /// Create a location from a span (approximation)
-    fn location_from_span(&self, _span: Span) -> Location {
-        // TODO: Implement proper span-to-location mapping
-        // For now, return a placeholder
-        Location::new(1, 1, 1, 1)
+    /// Create a location from a span using `proc_macro2`'s span locations
+    fn location_from_span(&self, span: Span) -> Location {
+        // proc_macro2 provides line/column info via start() and end()
+        let start = span.start();
+        let end = span.end();
+        Location::new(start.line, start.column, end.line, end.column)
     }
 
     /// Check if an item has a test attribute
@@ -114,15 +115,14 @@ impl AstVisitor {
         attrs.iter().any(|attr| {
             attr.path()
                 .get_ident()
-                .map(|ident| ident == "test" || ident == "tokio_test")
-                .unwrap_or(false)
+                .is_some_and(|ident| ident == "test" || ident == "tokio_test")
         })
     }
 
     /// Check if an item has a cfg(test) attribute
     fn is_cfg_test(&self, attrs: &[Attribute]) -> bool {
         attrs.iter().any(|attr| {
-            if attr.path().get_ident().map(|i| i == "cfg").unwrap_or(false) {
+            if attr.path().get_ident().is_some_and(|i| i == "cfg") {
                 // Simple check for cfg(test)
                 // Note: This is a simplified check. For production use,
                 // we should properly parse the attribute tokens.
@@ -195,12 +195,12 @@ impl AstVisitor {
             format!("{}::{}", self.current_module_path(), name)
         };
 
-        let param_count = item_fn.sig.inputs.len() - if is_method { 1 } else { 0 };
+        let param_count = item_fn.sig.inputs.len() - usize::from(is_method);
         let return_type = self.return_type_to_string(&item_fn.sig.output);
 
         // Initialize error handling info based on return type
         let mut error_handling = ErrorHandlingInfo::default();
-        if let Some(_) = return_type {
+        if return_type.is_some() {
             let (is_result, is_option) = self.is_result_or_option_type(&item_fn.sig.output);
             if is_result {
                 error_handling.result_returns = 1;
@@ -566,11 +566,5 @@ pub fn analyze_ast(source_file: SourceFile) -> AnalysisResult {
     visitor.analyze()
 }
 
-// 💡 **Improvement Suggestion**: Add source location mapping
-// **Time saved**: ~5 minutes per debugging session
-// **Implementation**: Use syn's Spanned trait with source map
-// **Benefits**: Accurate line/column information for error reporting
-//
-// Future enhancement: Implement proper span-to-location mapping using
-// proc_macro2's span locations or maintain a source map for accurate
-// line and column information.
+// ✅ Source location mapping implemented using proc_macro2's span locations
+// The location_from_span function now properly extracts line/column info

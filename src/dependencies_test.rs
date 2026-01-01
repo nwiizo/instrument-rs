@@ -9,6 +9,7 @@ mod tests {
     use std::path::Path;
 
     #[test]
+    #[ignore = "Requires /tmp/e2e-test-project to exist locally"]
     fn test_e2e_project_dependency_detection() {
         let path = Path::new("/tmp/e2e-test-project");
         let deps = ProjectDependencies::from_manifest(path).unwrap();
@@ -50,6 +51,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "Requires /tmp/e2e-test-project to exist locally"]
     fn test_detection_context_with_e2e_deps() {
         let path = Path::new("/tmp/e2e-test-project");
         let deps = ProjectDependencies::from_manifest(path).unwrap();

@@ -107,67 +107,78 @@ CIはこれらすべてをチェックするため、ローカルで確認せず
 ### Core Components
 
 1. **CLI Entry Point (`src/main.rs`)**
-   - Command-line argument parsing
-   - Framework auto-detection
-   - Orchestrates analysis pipeline
+   - Command-line argument parsing with clap
+   - Subcommands: `init`, `check`
+   - Output formats: human, json, mermaid
 
-2. **Analyzer Module (`src/analyzer/`)**
-   - `ast.rs`: AST parsing and traversal using `syn`
-   - `call_graph.rs`: Builds function call graphs from AST
-   - `patterns.rs`: Pattern matching for business logic detection
-   - Identifies critical paths and external service boundaries
+2. **Analyzer (`src/lib.rs`)**
+   - Main `Analyzer` struct orchestrates analysis
+   - Returns `AnalysisResult` with endpoints, instrumentation points, stats
 
-3. **Framework Detection (`src/frameworks/`)**
-   - `axum.rs`: Detects Axum handlers and middleware
-   - `actix.rs`: Actix-web endpoint detection
-   - `rocket.rs`: Rocket route detection
-   - `tonic.rs`: gRPC service detection
-   - Extensible trait-based design for new frameworks
+3. **Dependency Analysis (`src/dependencies.rs`)**
+   - Parses `Cargo.toml` using `cargo_metadata`
+   - Detects: databases (sqlx, diesel), HTTP clients (reqwest), caches (redis), frameworks (axum)
+   - `DetectionContext` for context-aware pattern matching
 
-4. **Pattern System (`src/patterns/`)**
-   - Business logic patterns (payment, order, user, etc.)
-   - Infrastructure patterns (database, cache, queue, etc.)
-   - External service call detection
-   - Customizable via YAML configuration
+4. **AST Analysis (`src/ast/`)**
+   - `analyzer.rs`: Core AST analysis using `syn`
+   - `visitor.rs`: AST traversal with accurate span locations
+   - `helpers.rs`: Utility functions for AST manipulation
 
-5. **Detector (`src/detector.rs`)**
-   - Instrumentation point identification
-   - Existing instrumentation quality analysis
-   - Critical path prioritization
-   - Cost-benefit analysis for instrumentation
+5. **Call Graph (`src/call_graph/`)**
+   - `builder.rs`: Builds function call graphs
+   - `graph.rs`: Graph data structure with cycle detection
+   - `resolver.rs`: Symbol resolution
 
-6. **Output Formatting (`src/output.rs`)**
-   - Human-readable tree output
-   - JSON for programmatic consumption
-   - Mermaid/DOT for visualization
-   - CI/CD integration formats
+6. **Detector (`src/detector/`)**
+   - `existing.rs`: Finds existing `#[instrument]` macros
+   - `priority.rs`: Context-aware prioritization
+   - `gaps.rs`: Instrumentation gap analysis
 
-### Key Design Patterns
+7. **Framework Detection (`src/framework/web/`)**
+   - `axum.rs`, `actix.rs`, `rocket.rs`, `tonic.rs`
+   - Extracts routes from Router definitions
 
-1. **Visitor Pattern**: Used extensively in AST analysis for traversing syntax trees
-2. **Builder Pattern**: Expected for complex configuration objects
-3. **Result-based Error Handling**: Using `thiserror` for custom errors
-4. **Trait-based Extensibility**: Reporter traits, detector traits for framework detection
+8. **Output Formatting (`src/output/`)**
+   - `tree.rs`: Human-readable output with colors
+   - `json.rs`: JSON for CI/CD
+   - `mermaid.rs`: Mermaid diagrams
 
-### Module Dependencies
+### Module Structure (Actual)
 
 ```
-main.rs (CLI entry point)
-├── analyzer/
-│   ├── ast.rs (syntax tree analysis)
-│   ├── call_graph.rs (function relationships)
-│   └── patterns.rs (pattern matching)
-├── frameworks/
-│   ├── mod.rs (framework trait)
+src/
+├── main.rs              # CLI entry point
+├── lib.rs               # Analyzer, AnalysisResult
+├── config.rs            # Config struct
+├── error.rs             # Error types
+├── dependencies.rs      # Cargo.toml parsing (Phase 2)
+├── ast/                 # AST analysis
+│   ├── analyzer.rs
+│   ├── visitor.rs
+│   └── helpers.rs
+├── call_graph/          # Call graph construction
+│   ├── builder.rs
+│   ├── graph.rs
+│   ├── node.rs
+│   ├── edge.rs
+│   └── resolver.rs
+├── detector/            # Instrumentation detection
+│   ├── existing.rs
+│   ├── priority.rs
+│   └── gaps.rs
+├── framework/web/       # Framework adapters
 │   ├── axum.rs
 │   ├── actix.rs
 │   ├── rocket.rs
 │   └── tonic.rs
-├── patterns/
-│   └── default.yml (pattern definitions)
-├── detector.rs (instrumentation detection)
-├── output.rs (formatting)
-└── error.rs (error types)
+├── patterns/            # Pattern matching
+│   ├── matcher.rs
+│   └── pattern_set.rs
+└── output/              # Output formatting
+    ├── tree.rs
+    ├── json.rs
+    └── mermaid.rs
 ```
 
 ### Pattern Categories
@@ -224,10 +235,98 @@ Based on TODO.md, the project is actively implementing:
 
 ## Testing Strategy
 
-- **Unit Tests**: Use `#[cfg(test)]` modules within source files
-- **Integration Tests**: Test full CLI workflows in `tests/`
-- **Snapshot Testing**: Uses `insta` for comparing complex outputs
-- **Framework Tests**: Specific tests for each framework detector
+### Test Files
+
+```
+tests/
+├── e2e_tests.rs           # 16 comprehensive E2E tests
+├── framework_detection.rs # Framework-specific tests
+├── pattern_matching.rs    # Pattern matching tests
+├── call_graph_test.rs     # Call graph construction
+├── ast_test.rs            # AST analysis tests
+└── common/mod.rs          # Test utilities & sample project generators
+```
+
+### Test Categories
+
+- **Unit Tests**: `#[cfg(test)]` modules within source files (55+ tests)
+- **E2E Tests**: Full pipeline tests in `tests/e2e_tests.rs`
+  - Uses `tempfile::TempDir` for isolated test projects
+  - Generates realistic Cargo.toml and source files
+  - Tests dependency detection, endpoint detection, analysis stats
+- **Integration Tests**: CLI workflow tests in `tests/`
+
+### Running Tests
+
+```bash
+# Run all tests
+cargo test
+
+# Run only E2E tests
+cargo test --test e2e_tests
+
+# Run with output visible
+cargo test -- --nocapture
+
+# Test count: ~90 tests (55 unit + 16 E2E + others)
+```
+
+### Creating E2E Test Projects
+
+Use helpers from `tests/common/mod.rs`:
+
+```rust
+use common::{TestProject, sample_projects};
+
+let project = TestProject::new();
+project.add_cargo_toml(r#"[package]..."#);
+project.add_source_file("main.rs", "fn main() {}");
+
+// Or use pre-built sample projects
+let project = sample_projects::axum_web_app();
+```
+
+## Learnings & Common Issues
+
+### CLI Output Parsing
+
+When testing JSON output, filter out cargo build messages:
+```bash
+# Wrong - cargo messages break jq
+cargo run --bin instrument-rs -- . --format json | jq '.'
+
+# Correct - filter or redirect stderr
+cargo run --bin instrument-rs -- . --format json 2>/dev/null | jq '.'
+```
+
+### Check Command
+
+The `check` command operates on current directory, not a path argument:
+```bash
+# Wrong
+instrument-rs check --threshold 80 /path/to/project
+
+# Correct - run from project directory
+cd /path/to/project && instrument-rs check --threshold 80
+```
+
+### Dependency Detection
+
+The `DetectionContext` uses specific patterns to reduce false positives:
+- `is_likely_http_call()` matches: `send_request`, `http_get`, `call_api`, `fetch_from`
+- It does NOT match generic names like `get_user` (prevents false positives)
+
+### Line Number Accuracy
+
+Line numbers point to the router definition line, not the handler function definition.
+Example: All endpoints show same line if defined in one `.route()` chain.
+
+### E2E Test Project Location
+
+Tests that require `/tmp/e2e-test-project` are marked with:
+```rust
+#[ignore = "Requires /tmp/e2e-test-project to exist locally"]
+```
 
 ## Important Notes
 

@@ -75,42 +75,89 @@ instrument-rs . --format json > instrumentation-report.json
 
 ## 📊 Example Output
 
-### Endpoint-based Analysis
+### Human-Readable Output (Default)
 
 ```
-Tracing from HTTP endpoints:
-────────────────────────────────────────────────────────────
-POST /api/v1/payments -> process_payment_handler
-├── validate_auth_token (auth.rs:45)
-│   └── verify_jwt (jwt.rs:23)
-├── parse_payment_request (models.rs:89)
-├── process_payment (payment.rs:123) ⚠️ Critical Path
-│   ├── validate_card (validation.rs:45)
-│   ├── check_fraud (fraud.rs:78) ⚠️ External Service
-│   ├── charge_card (payment_gateway.rs:90) ⚠️ External Service
-│   └── save_transaction (db.rs:234) ⚠️ Database Operation
-└── send_confirmation (notification.rs:56) ⚠️ External Service
+instrument-rs Analysis Results
+═══════════════════════════════
 
-Critical paths identified: 8
-External service calls: 4
-Database operations: 2
+📊 Statistics
+   Files analyzed:     1
+   Functions found:    46
+   Lines of code:      688
+   Endpoints:          8
+   Instrumentation:    8 points
+
+🔗 Detected Endpoints
+   GET /health → health_check
+      src/main.rs:661
+   GET /users/:id → get_user
+      src/main.rs:662
+   POST /users → create_user
+      src/main.rs:663
+   POST /orders → create_order
+      src/main.rs:666
+
+📍 Instrumentation Points
+   [Critical] health_check (HTTP/gRPC Endpoint)
+      Reason: GET endpoint handler
+      Suggested span: get_health
+      Location: src/main.rs:661
+
+   [Critical] create_order (HTTP/gRPC Endpoint)
+      Reason: POST endpoint handler
+      Suggested span: post_orders
+      Location: src/main.rs:666
 ```
 
-### Visual Call Graph (Mermaid)
+### JSON Output (`--format json`)
+
+```json
+{
+  "endpoints": [
+    {
+      "framework": "axum",
+      "handler": "health_check",
+      "location": { "file": "src/main.rs", "line": 661 },
+      "method": "GET",
+      "path": "/health"
+    }
+  ],
+  "instrumentation_points": [
+    {
+      "file": "src/main.rs",
+      "function": "health_check",
+      "kind": "Endpoint",
+      "priority": "Critical",
+      "reason": "GET endpoint handler",
+      "suggested_span_name": "get_health"
+    }
+  ],
+  "stats": {
+    "endpoints_count": 8,
+    "instrumentation_points": 8,
+    "total_files": 1,
+    "total_functions": 46
+  }
+}
+```
+
+### Mermaid Output (`--format mermaid`)
 
 ```mermaid
 graph TD
-    A[POST /payments] --> B[validate_auth]
-    A --> C[process_payment]
-    C --> D[validate_card]
-    C --> E[charge_card]
-    C --> F[save_transaction]
-    E --> G[payment_gateway::charge]
-    F --> H[db::insert]
-    
-    style C fill:#f9f,stroke:#333,stroke-width:4px
-    style E fill:#ff9,stroke:#333,stroke-width:2px
-    style G fill:#9ff,stroke:#333,stroke-width:2px
+    EP0["GET /health"]
+    EP0 --> health_check
+    EP1["GET /users/:id"]
+    EP1 --> get_user
+    EP2["POST /users"]
+    EP2 --> create_user
+    EP3["POST /orders"]
+    EP3 --> create_order
+    class health_check critical
+    class create_order critical
+
+    classDef critical fill:#ff0000,stroke:#333,stroke-width:2px
 ```
 
 ## 🔧 Command Line Options

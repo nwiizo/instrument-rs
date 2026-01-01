@@ -1,52 +1,49 @@
 # instrument-rs
 
-A comprehensive Rust library and CLI tool for code instrumentation, analysis, and testing. It provides automated code analysis for test coverage tracking, mutation testing, and observability instrumentation (tracing, logging, metrics). The tool analyzes execution flows from endpoints to identify critical paths and suggests optimal instrumentation points.
+A Rust CLI tool for analyzing code and detecting optimal instrumentation points for observability (tracing, logging, metrics). It traces execution flows from HTTP/gRPC endpoints to identify critical paths that need monitoring, helping teams implement comprehensive observability strategies.
 
 ## 🎯 Overview
 
-`instrument-rs` is a powerful code analysis and instrumentation tool that helps you:
+`instrument-rs` is a code analysis tool focused on observability that helps you:
 
-**Code Analysis & Instrumentation:**
+**Smart Dependency-Aware Analysis:**
+- Analyze `Cargo.toml` to understand project dependencies
+- Context-aware detection based on used crates (sqlx, reqwest, redis, etc.)
+- Reduce false positives by understanding what your project actually uses
+- Auto-detect web frameworks (Axum, Actix-web, Rocket, Tonic)
+
+**Call Graph & Path Tracing:**
 - Build comprehensive call graphs to understand code structure
 - Trace execution paths from HTTP/gRPC endpoints
 - Identify critical business logic and external service calls
 - Detect patterns in code (database operations, API calls, error handling)
-- Score existing instrumentation quality
 
-**Testing & Quality:**
-- Generate mutation tests to evaluate test suite effectiveness
-- Track test coverage with detailed reporting
-- Apply various mutation operators (arithmetic, comparison, logical)
-- Produce coverage reports in multiple formats (HTML, JSON, LCOV)
-
-**Observability:**
+**Instrumentation Detection:**
+- Find existing `#[instrument]` macros and manual span creation
+- Identify gaps in current observability coverage
 - Suggest optimal points for tracing, logging, and metrics
-- Auto-detect web frameworks (Axum, Actix-web, Rocket, Tonic)
-- Generate instrumentation code automatically
-- Optimize telemetry costs and ensure compliance
+- Score existing instrumentation quality
 
 ## ✨ Features
 
+### Smart Analysis (Phase 2)
+- **Dependency-Aware Detection**: Analyzes `Cargo.toml` to understand what crates your project uses
+- **Context-Based Matching**: Prioritizes patterns based on detected dependencies
+- **False Positive Reduction**: `get_user` won't be flagged as HTTP client when you use sqlx
+- **Accurate Line Numbers**: Precise source locations using proc-macro2 span-locations
+
 ### Core Capabilities
 - **AST-based Analysis**: Deep code analysis using Rust's syntax tree
-- **Call Graph Construction**: Build comprehensive function call graphs with cross-crate resolution
+- **Call Graph Construction**: Build comprehensive function call graphs
 - **Pattern Recognition**: Configurable pattern matching for code constructs
 - **Framework Detection**: Auto-detect web frameworks (Axum, Actix-web, Rocket, Tonic)
-- **Parallel Processing**: Fast analysis with multi-threaded execution
-
-### Instrumentation & Testing
-- **Coverage Tracking**: Instrument code for test coverage analysis
-- **Mutation Testing**: Apply mutations to evaluate test effectiveness
-- **Multiple Mutation Operators**: Arithmetic, comparison, logical, and more
-- **Configurable Thresholds**: Set coverage and mutation score requirements
-- **Incremental Analysis**: Analyze only changed files for faster CI/CD
+- **Existing Instrumentation Detection**: Find `#[instrument]` macros and manual spans
 
 ### Reporting & Visualization
-- **Multiple Output Formats**: JSON, HTML, Mermaid, DOT, Console
+- **Multiple Output Formats**: JSON, Mermaid, DOT, Console
 - **Visual Call Graphs**: Generate interactive diagrams
-- **Detailed Reports**: Coverage reports with source code highlighting
 - **Quality Scoring**: Evaluate and score existing instrumentation
-- **Cost Analysis**: Estimate telemetry overhead and costs
+- **Critical Path Identification**: Highlight paths needing observability
 
 ## 📦 Installation
 
@@ -169,16 +166,21 @@ comprehensive observability implementation plans. Run `instrument-rs -h` for opt
 ```
 instrument-rs/
 ├── src/
-│   ├── main.rs              # CLI entry point
+│   ├── main.rs              # CLI entry point (streamlined)
 │   ├── lib.rs               # Library interface
+│   ├── dependencies.rs      # Cargo.toml dependency analysis (Phase 2)
 │   ├── ast/                 # AST analysis and manipulation
 │   │   ├── analyzer.rs      # Core analysis functionality
-│   │   ├── visitor.rs       # AST traversal utilities
+│   │   ├── visitor.rs       # AST traversal with accurate spans
 │   │   └── helpers.rs       # AST manipulation helpers
 │   ├── call_graph/          # Call graph construction
 │   │   ├── builder.rs       # Graph builder
 │   │   ├── graph.rs         # Graph data structure
 │   │   └── resolver.rs      # Symbol resolution
+│   ├── detector/            # Instrumentation detection
+│   │   ├── existing.rs      # Existing instrumentation finder
+│   │   ├── priority.rs      # Context-aware prioritization
+│   │   └── patterns.rs      # Detection patterns
 │   ├── framework/           # Framework detection
 │   │   ├── detector.rs      # Auto-detection logic
 │   │   └── web/             # Web framework adapters
@@ -189,24 +191,13 @@ instrument-rs/
 │   ├── patterns/            # Pattern matching system
 │   │   ├── matcher.rs       # Pattern matching engine
 │   │   └── pattern_set.rs   # Pattern definitions
-│   ├── instrumentation/     # Code instrumentation
-│   │   ├── coverage.rs      # Coverage tracking
-│   │   ├── mutation.rs      # Mutation testing
-│   │   └── transform.rs     # Code transformation
-│   ├── scoring/             # Quality scoring
-│   │   ├── analyzer.rs      # Scoring algorithms
-│   │   └── instrumentation.rs # Instrumentation scoring
-│   ├── output/              # Output formatting
-│   │   ├── json.rs          # JSON formatter
-│   │   ├── mermaid.rs       # Mermaid diagrams
-│   │   └── tree.rs          # Tree visualization
-│   └── config.rs            # Configuration handling
-├── docs/
-│   ├── architecture.md      # Architecture documentation
-│   └── instrumentation_scoring.md # Scoring system details
+│   └── output/              # Output formatting
+│       ├── json.rs          # JSON formatter
+│       ├── mermaid.rs       # Mermaid diagrams
+│       └── tree.rs          # Tree visualization
 ├── examples/                # Example usage
 ├── tests/                   # Integration tests
-└── instrument-rs.toml.example # Configuration template
+└── CLAUDE.md                # AI assistant instructions
 ```
 
 ## 🛠️ Development
@@ -250,24 +241,21 @@ cargo clippy -- -D warnings
 cargo doc --no-deps --open
 ```
 
-## 🚧 Features in Development
+## 🚧 Roadmap
 
-Based on real-world production needs:
+### Completed
+- **Phase 1**: Core refactoring - streamlined architecture, removed unused modules
+- **Phase 2**: Smart analysis - cargo_metadata integration, dependency-aware detection
 
-### High Priority
-- **Existing Instrumentation Detection**: Analyze current tracing/logging quality
-- **Differential Analysis**: Suggest incremental improvements to existing code
+### In Progress
+- **Prometheus/OpenTelemetry Integration**: Verify compatibility with observability tools
 - **Coverage Metrics**: Calculate observability coverage by module/criticality
 
-### Medium Priority
-- **Performance Impact Estimation**: Predict overhead of instrumentation
-- **Team Standardization**: Enforce naming conventions and required fields
-- **Cost Optimization**: Estimate and optimize telemetry costs (DataDog, CloudWatch)
-
-### Low Priority
-- **Phased Rollout Plans**: Generate step-by-step implementation guides
-- **Dynamic Configuration**: Runtime instrumentation adjustments
-- **Compliance Checking**: GDPR, PCI-DSS, HIPAA data handling validation
+### Planned
+- **LSP Integration**: Type information for more accurate detection
+- **Custom Pattern Files**: `.instrument-rs.toml` for project-specific patterns
+- **Additional Frameworks**: Warp, Poem, Salvo support
+- **Cost Optimization**: Telemetry cost estimation (DataDog, CloudWatch)
 
 ## Contributing
 

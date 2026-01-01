@@ -443,8 +443,7 @@ impl<'a> Visit<'_> for CallTracer<'a> {
             .builder
             .context_stack
             .last()
-            .map(|ctx| ctx.in_conditional)
-            .unwrap_or(false);
+            .is_some_and(|ctx| ctx.in_conditional);
 
         if let Some(ctx) = self.builder.context_stack.last_mut() {
             ctx.in_conditional = true;
@@ -494,8 +493,7 @@ impl<'a> CallTracer<'a> {
             .builder
             .context_stack
             .last()
-            .map(|ctx| ctx.in_loop)
-            .unwrap_or(false);
+            .is_some_and(|ctx| ctx.in_loop);
 
         if let Some(ctx) = self.builder.context_stack.last_mut() {
             ctx.in_loop = true;

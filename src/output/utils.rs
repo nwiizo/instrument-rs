@@ -1,22 +1,37 @@
 //! Utility functions for formatting and colorized terminal output
 
 /// ANSI color codes for terminal output
+#[allow(missing_docs)]
 pub mod colors {
+    /// Reset all formatting
     pub const RESET: &str = "\x1b[0m";
+    /// Bold text
     pub const BOLD: &str = "\x1b[1m";
+    /// Dim text
     pub const DIM: &str = "\x1b[2m";
 
+    /// Black foreground
     pub const BLACK: &str = "\x1b[30m";
+    /// Red foreground
     pub const RED: &str = "\x1b[31m";
+    /// Green foreground
     pub const GREEN: &str = "\x1b[32m";
+    /// Yellow foreground
     pub const YELLOW: &str = "\x1b[33m";
+    /// Blue foreground
     pub const BLUE: &str = "\x1b[34m";
+    /// Magenta foreground
     pub const MAGENTA: &str = "\x1b[35m";
+    /// Cyan foreground
     pub const CYAN: &str = "\x1b[36m";
+    /// White foreground
     pub const WHITE: &str = "\x1b[37m";
 
+    /// Red background
     pub const BG_RED: &str = "\x1b[41m";
+    /// Green background
     pub const BG_GREEN: &str = "\x1b[42m";
+    /// Yellow background
     pub const BG_YELLOW: &str = "\x1b[43m";
 }
 
@@ -65,16 +80,21 @@ pub fn format_coverage_bar(coverage: f64, width: usize, use_color: bool) -> Stri
     colorize(&bar, coverage_color(coverage), use_color)
 }
 
-/// Tree drawing characters
+/// Tree drawing characters for ASCII art trees
 pub mod tree_chars {
+    /// Branch connector for non-last items
     pub const BRANCH: &str = "├── ";
+    /// Branch connector for last item
     pub const LAST_BRANCH: &str = "└── ";
+    /// Vertical line for continuing branches
     pub const VERTICAL: &str = "│   ";
+    /// Empty space for alignment
     pub const EMPTY: &str = "    ";
 }
 
 /// Helper for building tree structures
 pub struct TreeBuilder {
+    /// Accumulated output lines
     pub lines: Vec<String>,
     use_color: bool,
 }

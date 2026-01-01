@@ -81,8 +81,8 @@ cargo doc --no-deps --open
 ### Development Workflow
 
 ```bash
-# Before committing (as per global CLAUDE.md)
-cargo fmt && cargo clippy && cargo test
+# IMPORTANT: Always run these checks before pushing to avoid CI failures
+cargo fmt && cargo clippy -- -D warnings && cargo test
 
 # Check for unused dependencies
 cargo machete
@@ -90,6 +90,17 @@ cargo machete
 # Update dependencies
 cargo update
 ```
+
+### Pre-Push Checklist
+
+**必ずpush前にローカルで以下を確認すること:**
+
+1. `cargo fmt` - コードフォーマット
+2. `cargo clippy -- -D warnings` - 警告なしでlint通過
+3. `cargo test` - 全テスト通過
+4. `cargo build --release` - リリースビルド成功
+
+CIはこれらすべてをチェックするため、ローカルで確認せずにpushするとCIが失敗する。
 
 ## Architecture Overview
 

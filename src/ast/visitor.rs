@@ -532,11 +532,8 @@ impl<'ast> Visit<'ast> for AstVisitor {
             func.complexity.statement_count += 1;
         }
 
-        match stmt {
-            Stmt::Expr(expr, _) => {
-                self.add_element(ElementKind::Statement, expr.span());
-            }
-            _ => {}
+        if let Stmt::Expr(expr, _) = stmt {
+            self.add_element(ElementKind::Statement, expr.span());
         }
 
         visit::visit_stmt(self, stmt);

@@ -117,11 +117,11 @@ pub struct ExistingInstrumentation {
 /// Kind of existing instrumentation
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum ExistingKind {
-    /// tracing #[instrument] macro
+    /// tracing `#[instrument]` macro
     TracingInstrument,
     /// Manual tracing span
     ManualSpan,
-    /// log! macro (info!, warn!, error!, etc.)
+    /// `log!` macro (`info!`, `warn!`, `error!`, etc.)
     LogMacro,
     /// Metrics recording
     Metrics,

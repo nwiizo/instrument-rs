@@ -2,8 +2,10 @@
 //!
 //! A Rust CLI tool for detecting optimal instrumentation points for observability.
 
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
 use instrument_rs::config::{FrameworkType, OutputFormat};
+use instrument_rs::detector::GapSeverity;
+use instrument_rs::fixer::{Fixer, FixerConfig};
 use instrument_rs::output::{FormatterFactory, FormatterOptions, write_output};
 use instrument_rs::{Analyzer, Config};
 use std::path::PathBuf;
@@ -56,8 +58,40 @@ struct Cli {
     #[arg(short, long)]
     output: Option<PathBuf>,
 
+    /// Apply suggested fixes automatically
+    #[arg(long)]
+    fix: bool,
+
+    /// Preview changes without modifying files (implies analysis)
+    #[arg(long)]
+    dry_run: bool,
+
+    /// Create backup files before modification (.rs.bak)
+    #[arg(long)]
+    backup: bool,
+
+    /// Filter fixes by severity
+    #[arg(long, value_enum, default_value = "all")]
+    fix_severity: FixSeverity,
+
+    /// Maximum number of fixes to apply (0 = unlimited)
+    #[arg(long, default_value = "0")]
+    max_fixes: usize,
+
     #[command(subcommand)]
     command: Option<Commands>,
+}
+
+/// Severity filter for fixes
+#[derive(Debug, Clone, Copy, ValueEnum, Default)]
+pub enum FixSeverity {
+    /// Fix all gaps
+    #[default]
+    All,
+    /// Fix only critical gaps
+    Critical,
+    /// Fix critical and major gaps
+    Major,
 }
 
 #[derive(Subcommand)]
@@ -232,6 +266,11 @@ fn analyze(cli: &Cli) -> anyhow::Result<()> {
         .collect();
     let result = analyzer.analyze(&paths)?;
 
+    // Handle fix mode
+    if cli.fix || cli.dry_run {
+        return apply_fixes(cli, result.gaps);
+    }
+
     let output_format = match cli.format {
         OutputFormat::Human => instrument_rs::output::OutputFormat::Tree,
         OutputFormat::Json => instrument_rs::output::OutputFormat::Json,
@@ -249,6 +288,47 @@ fn analyze(cli: &Cli) -> anyhow::Result<()> {
     let output = formatter.format(&result)?;
 
     write_output(&output, cli.output.as_deref())?;
+
+    Ok(())
+}
+
+fn apply_fixes(
+    cli: &Cli,
+    gaps: Vec<instrument_rs::detector::InstrumentationGap>,
+) -> anyhow::Result<()> {
+    if gaps.is_empty() {
+        println!("No instrumentation gaps found. Nothing to fix.");
+        return Ok(());
+    }
+
+    let min_severity = match cli.fix_severity {
+        FixSeverity::All => None,
+        FixSeverity::Critical => Some(GapSeverity::Critical),
+        FixSeverity::Major => Some(GapSeverity::Major),
+    };
+
+    let fixer_config = FixerConfig {
+        apply: cli.fix && !cli.dry_run,
+        backup: cli.backup,
+        min_severity,
+        max_fixes: if cli.max_fixes == 0 {
+            None
+        } else {
+            Some(cli.max_fixes)
+        },
+    };
+
+    let fixer = Fixer::new(fixer_config);
+    let result = fixer.apply_fixes(gaps)?;
+
+    let use_colors = atty::is(atty::Stream::Stdout);
+    let report = instrument_rs::fixer::format_report(&result, use_colors);
+
+    println!("{}", report);
+
+    if result.failed > 0 {
+        std::process::exit(1);
+    }
 
     Ok(())
 }

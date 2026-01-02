@@ -64,6 +64,7 @@ pub mod dependencies;
 mod dependencies_test;
 pub mod detector;
 pub mod error;
+pub mod fixer;
 pub mod framework;
 pub mod output;
 pub mod patterns;

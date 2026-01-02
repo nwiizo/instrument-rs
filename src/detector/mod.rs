@@ -10,6 +10,7 @@ pub mod endpoint;
 pub mod existing;
 pub mod gaps;
 pub mod priority;
+pub mod rules;
 
 /// Location in source code
 #[derive(Debug, Clone, Serialize, Deserialize)]

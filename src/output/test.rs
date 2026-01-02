@@ -46,6 +46,7 @@ mod tests {
             points,
             existing_instrumentation: vec![],
             gaps: vec![],
+            rule_violations: vec![],
             dependencies: ProjectDependencies::default(),
             stats: AnalysisStats {
                 total_files: 5,
@@ -55,6 +56,7 @@ mod tests {
                 instrumentation_points: 1,
                 existing_count: 0,
                 gaps_count: 0,
+                rule_violations_count: 0,
             },
         }
     }

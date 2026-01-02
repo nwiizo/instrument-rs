@@ -27,6 +27,7 @@ impl OutputFormatter for JsonFormatter {
                 "instrumentation_points": result.stats.instrumentation_points,
                 "existing_count": result.stats.existing_count,
                 "gaps_count": result.stats.gaps_count,
+                "rule_violations_count": result.stats.rule_violations_count,
             },
             "endpoints": result.endpoints.iter().map(|e| {
                 serde_json::json!({
@@ -78,6 +79,19 @@ impl OutputFormatter for JsonFormatter {
                     "priority": format!("{:?}", p.priority),
                     "reason": p.reason,
                     "suggested_span_name": p.suggested_span_name,
+                })
+            }).collect::<Vec<_>>(),
+            "rule_violations": result.rule_violations.iter().map(|v| {
+                serde_json::json!({
+                    "kind": format!("{:?}", v.kind),
+                    "severity": format!("{:?}", v.severity),
+                    "message": v.message,
+                    "suggestion": v.suggestion,
+                    "location": {
+                        "file": v.location.file.display().to_string(),
+                        "line": v.location.line,
+                        "function": v.location.function_name,
+                    }
                 })
             }).collect::<Vec<_>>(),
         });

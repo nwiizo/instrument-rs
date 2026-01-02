@@ -93,6 +93,8 @@ pub struct AnalysisResult {
     pub existing_instrumentation: Vec<detector::ExistingInstrumentation>,
     /// Gaps in instrumentation coverage
     pub gaps: Vec<detector::InstrumentationGap>,
+    /// Rule violations found in existing instrumentation
+    pub rule_violations: Vec<detector::rules::RuleViolation>,
     /// Project dependencies (for context-aware detection)
     pub dependencies: ProjectDependencies,
     /// Analysis statistics
@@ -116,6 +118,8 @@ pub struct AnalysisStats {
     pub existing_count: usize,
     /// Number of instrumentation gaps found
     pub gaps_count: usize,
+    /// Number of rule violations found
+    pub rule_violations_count: usize,
 }
 
 /// The main analyzer for detecting instrumentation points
@@ -176,7 +180,12 @@ impl Analyzer {
         // 8. Detect gaps (instrumentation points without existing instrumentation)
         let gaps = self.detect_gaps(&points, &existing_instrumentation);
 
-        // 9. Compute stats
+        // 9. Check naming convention rules
+        let rule_checker = detector::rules::RuleChecker::new(&self.config.naming_rules);
+        let mut rule_violations = rule_checker.check_existing(&existing_instrumentation);
+        rule_violations.extend(rule_checker.check_points(&points));
+
+        // 10. Compute stats
         let stats = AnalysisStats {
             total_files: parsed.len(),
             total_functions: call_graph.node_count(),
@@ -185,6 +194,7 @@ impl Analyzer {
             instrumentation_points: points.len(),
             existing_count: existing_instrumentation.len(),
             gaps_count: gaps.len(),
+            rule_violations_count: rule_violations.len(),
         };
 
         // Extract dependencies from context
@@ -197,6 +207,7 @@ impl Analyzer {
             points,
             existing_instrumentation,
             gaps,
+            rule_violations,
             dependencies,
             stats,
         })

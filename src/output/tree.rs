@@ -3,6 +3,7 @@
 use super::traits::{FormatterOptions, OutputFormat, OutputFormatter};
 use crate::AnalysisResult;
 use crate::Result;
+use crate::detector::rules::{ViolationKind, ViolationSeverity};
 use crate::detector::{ExistingKind, GapSeverity};
 use colored::*;
 
@@ -73,6 +74,30 @@ impl TreeFormatter {
             "BAD".normal()
         }
     }
+
+    fn format_violation_severity(&self, severity: &ViolationSeverity) -> ColoredString {
+        if self.options.use_colors {
+            match severity {
+                ViolationSeverity::Error => "ERROR".red().bold(),
+                ViolationSeverity::Warning => "WARN".yellow(),
+                ViolationSeverity::Info => "INFO".blue(),
+            }
+        } else {
+            match severity {
+                ViolationSeverity::Error => "ERROR".normal(),
+                ViolationSeverity::Warning => "WARN".normal(),
+                ViolationSeverity::Info => "INFO".normal(),
+            }
+        }
+    }
+
+    fn format_violation_kind(&self, kind: &ViolationKind) -> &'static str {
+        match kind {
+            ViolationKind::NamingConvention => "Naming",
+            ViolationKind::MissingAttribute => "Missing Attr",
+            ViolationKind::ForbiddenPattern => "Forbidden",
+        }
+    }
 }
 
 impl OutputFormatter for TreeFormatter {
@@ -110,8 +135,12 @@ impl OutputFormatter for TreeFormatter {
             result.stats.existing_count
         ));
         output.push_str(&format!(
-            "   Gaps:               {}\n\n",
+            "   Gaps:               {}\n",
             result.stats.gaps_count
+        ));
+        output.push_str(&format!(
+            "   Rule violations:    {}\n\n",
+            result.stats.rule_violations_count
         ));
 
         // Endpoints
@@ -169,6 +198,26 @@ impl OutputFormatter for TreeFormatter {
                     gap.location.line
                 ));
                 output.push_str(&format!("      Suggested: {}\n", gap.suggested_fix));
+                output.push('\n');
+            }
+        }
+
+        // Rule Violations
+        if !result.rule_violations.is_empty() {
+            output.push_str("📋 Rule Violations\n");
+            for violation in &result.rule_violations {
+                let severity = self.format_violation_severity(&violation.severity);
+                let kind = self.format_violation_kind(&violation.kind);
+                output.push_str(&format!(
+                    "   [{}] [{}] {}\n",
+                    severity, kind, violation.message
+                ));
+                output.push_str(&format!(
+                    "      Location: {}:{}\n",
+                    violation.location.file.display(),
+                    violation.location.line
+                ));
+                output.push_str(&format!("      Suggestion: {}\n", violation.suggestion));
                 output.push('\n');
             }
         }

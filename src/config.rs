@@ -37,6 +37,42 @@ pub struct Config {
     /// Source directories to analyze (relative to root)
     #[serde(default = "default_source_dirs")]
     pub source_dirs: Vec<PathBuf>,
+
+    /// Naming convention rules
+    #[serde(default)]
+    pub naming_rules: NamingRules,
+}
+
+/// Naming convention rules for instrumentation
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct NamingRules {
+    /// Required span name prefix for endpoints (e.g., "api." or "web.")
+    #[serde(default)]
+    pub endpoint_prefix: Option<String>,
+
+    /// Required span name prefix for database operations (e.g., "db.")
+    #[serde(default)]
+    pub database_prefix: Option<String>,
+
+    /// Required span name prefix for external API calls (e.g., "ext.")
+    #[serde(default)]
+    pub external_prefix: Option<String>,
+
+    /// Required span name prefix for cache operations (e.g., "cache.")
+    #[serde(default)]
+    pub cache_prefix: Option<String>,
+
+    /// Required attributes for endpoint handlers
+    #[serde(default)]
+    pub required_endpoint_attrs: Vec<String>,
+
+    /// Required attributes for database operations
+    #[serde(default)]
+    pub required_database_attrs: Vec<String>,
+
+    /// Forbidden patterns in span names (e.g., passwords, tokens)
+    #[serde(default)]
+    pub forbidden_patterns: Vec<String>,
 }
 
 fn default_threshold() -> f64 {
@@ -99,6 +135,7 @@ impl Default for Config {
             patterns_file: None,
             exclude_patterns: default_exclude_patterns(),
             source_dirs: default_source_dirs(),
+            naming_rules: NamingRules::default(),
         }
     }
 }

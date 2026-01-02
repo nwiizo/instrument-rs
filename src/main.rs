@@ -266,5 +266,6 @@ fn build_config(cli: &Cli) -> Config {
             ".git".to_string(),
         ],
         source_dirs: vec![PathBuf::from("src")],
+        naming_rules: instrument_rs::config::NamingRules::default(),
     }
 }

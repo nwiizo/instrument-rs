@@ -364,7 +364,7 @@ mod tests {
     #[test]
     fn test_plan_insertions_sorted_descending() {
         let source = "fn a() {}\nfn b() {}\nfn c() {}\n";
-        let gaps = vec![
+        let gaps = [
             create_test_gap(1, "#[instrument]"),
             create_test_gap(2, "#[instrument]"),
             create_test_gap(3, "#[instrument]"),

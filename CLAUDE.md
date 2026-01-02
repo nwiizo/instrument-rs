@@ -91,14 +91,32 @@ cargo machete
 cargo update
 ```
 
-### Pre-Push Checklist
+### Pre-Push Checklist (CRITICAL)
 
-**必ずpush前にローカルで以下を確認すること:**
+**⚠️ 必ずコミット前にローカルで以下を実行すること:**
 
-1. `cargo fmt` - コードフォーマット
-2. `cargo clippy -- -D warnings` - 警告なしでlint通過
-3. `cargo test` - 全テスト通過
-4. `cargo build --release` - リリースビルド成功
+```bash
+# 全チェックを一括実行（コミット前に必須）
+cargo fmt && cargo clippy -- -D warnings && cargo test && cargo doc --no-deps
+```
+
+| チェック | コマンド | 備考 |
+|---------|---------|------|
+| フォーマット | `cargo fmt` | 自動修正される |
+| Lint | `cargo clippy -- -D warnings` | 警告をエラーとして扱う |
+| テスト | `cargo test` | 全テスト通過必須 |
+| ドキュメント | `cargo doc --no-deps` | docコメントのリンク切れ検出 |
+
+### よくあるCI失敗パターン
+
+1. **rustdoc broken links**: docコメント内の `#[instrument]` などが壊れたリンクとして検出される
+   - 解決: バッククォートで囲む（例: `` `#[instrument]` ``）
+
+2. **clippy warnings**: CIでは `-D warnings` で警告がエラーになる
+   - 解決: ローカルで `cargo clippy -- -D warnings` を実行
+
+3. **test failures**: ローカルで通ってもCIで落ちることがある
+   - 解決: `cargo test` を必ず実行
 
 CIはこれらすべてをチェックするため、ローカルで確認せずにpushするとCIが失敗する。
 

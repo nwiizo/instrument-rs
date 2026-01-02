@@ -1,4 +1,4 @@
-//! Line-based text insertion algorithm for adding #[instrument] attributes
+//! Line-based text insertion algorithm for adding `#[instrument]` attributes
 //!
 //! This module provides functions to safely insert instrumentation attributes
 //! into Rust source files while preserving formatting and handling edge cases.

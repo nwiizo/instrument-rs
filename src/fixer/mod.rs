@@ -221,12 +221,22 @@ impl Fixer {
         let insertions = plan_insertions(&original_content, &gap_refs);
 
         // Generate diffs for each gap
-        for (gap, insertion) in gaps_to_fix.iter().zip(insertions.iter()) {
-            let diff = report::generate_diff(
-                &original_content,
-                insertion.target_line,
-                &format!("{}{}", insertion.indentation, insertion.content),
-            );
+        // Note: insertions are sorted descending for application, so we need to
+        // match each gap with its corresponding insertion by target line
+        for gap in &gaps_to_fix {
+            // Find the insertion that matches this gap's line
+            let insertion = insertions
+                .iter()
+                .find(|i| i.target_line == gap.location.line)
+                .or_else(|| insertions.first());
+
+            let diff = insertion.map(|ins| {
+                report::generate_diff(
+                    &original_content,
+                    ins.target_line,
+                    &format!("{}{}", ins.indentation, ins.content),
+                )
+            });
 
             let status = if self.config.apply {
                 FixStatus::Applied
@@ -237,17 +247,34 @@ impl Fixer {
             attempts.push(FixAttempt {
                 gap: gap.clone(),
                 status,
-                diff: Some(diff),
+                diff,
             });
         }
 
         // Apply changes if not dry-run
         let (modified_content, backup_path) = if self.config.apply && !insertions.is_empty() {
             // First, ensure use statement exists
-            let (source_with_use, _use_added) = insertion::ensure_use_statement(&original_content);
+            let (source_with_use, use_added) = insertion::ensure_use_statement(&original_content);
+
+            // Re-plan insertions if use statement was added (line numbers shifted)
+            let adjusted_insertions = if use_added {
+                // Recalculate with adjusted line numbers
+                let adjusted_gaps: Vec<_> = gaps_to_fix
+                    .iter()
+                    .map(|g| {
+                        let mut adjusted = g.clone();
+                        adjusted.location.line += 1; // Account for added use statement
+                        adjusted
+                    })
+                    .collect();
+                let gap_refs: Vec<_> = adjusted_gaps.iter().collect();
+                plan_insertions(&source_with_use, &gap_refs)
+            } else {
+                insertions.clone()
+            };
 
             // Then apply attribute insertions
-            let new_content = apply_insertions(&source_with_use, &insertions);
+            let new_content = apply_insertions(&source_with_use, &adjusted_insertions);
 
             // Validate syntax
             if let Err(e) = validate_syntax(&new_content) {

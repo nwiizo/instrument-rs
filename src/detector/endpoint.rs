@@ -49,13 +49,15 @@ fn detect_axum_endpoints(file: &SourceFile) -> Vec<Endpoint> {
         // Match .route("/path", method(handler))
         if let Some(captures) = parse_axum_route(line) {
             let handler = captures.handler;
+            // Find the actual function definition line, not the route registration line
+            let fn_line = find_function_definition_line(source, &handler).unwrap_or(line_num + 1);
             endpoints.push(Endpoint {
                 method: captures.method,
                 path: captures.path,
                 handler: handler.clone(),
                 location: Location {
                     file: file.path().to_path_buf(),
-                    line: line_num + 1,
+                    line: fn_line,
                     column: 1,
                     function_name: handler,
                 },
@@ -244,4 +246,25 @@ fn extract_function_name(line: &str) -> Option<String> {
     } else {
         Some(name.to_string())
     }
+}
+
+/// Find the line number where a function is defined
+fn find_function_definition_line(source: &str, fn_name: &str) -> Option<usize> {
+    for (line_num, line) in source.lines().enumerate() {
+        let trimmed = line.trim();
+
+        // Look for function definitions
+        if trimmed.starts_with("pub async fn ")
+            || trimmed.starts_with("async fn ")
+            || trimmed.starts_with("pub fn ")
+            || trimmed.starts_with("fn ")
+        {
+            if let Some(name) = extract_function_name(trimmed) {
+                if name == fn_name {
+                    return Some(line_num + 1); // 1-based line number
+                }
+            }
+        }
+    }
+    None
 }
